@@ -1,0 +1,10 @@
+{{ define "main" }}
+{{/* Sections are not a designed view. Bounded listing so the URL is never a 404. */}}
+<h1>{{ .Title }}</h1>
+{{ .Content }}
+<ul>
+  {{ range (.Paginate .Pages (int (or site.Params.pagination.term 6))).Pages }}
+    <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>
+  {{ end }}
+</ul>
+{{ end }}

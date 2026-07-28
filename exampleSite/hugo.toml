@@ -1,0 +1,72 @@
+baseURL = "https://example.org/"
+locale = "en-us"
+title = "Field Notes"
+theme = "hugo-theme-ledger"
+
+enableRobotsTXT = true
+
+[taxonomies]
+  category = "categories"
+  tag = "tags"
+
+[pagination]
+  pagerSize = 6   # Hugo's own default; per-view sizes below take precedence
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+[markup.highlight]
+  noClasses = false
+
+[params]
+  # Theme applied before the visitor chooses one: light | dark | contrast
+  defaultTheme = "light"
+
+  # Footer counts line. Leave empty to generate it from the site's own totals.
+  siteBlurb = ""
+
+  # Load Manrope and IBM Plex Mono from Google Fonts. Set false to self-host.
+  googleFonts = true
+
+  # Above this many items, a category/tag routes to the search page with a
+  # pre-filled query instead of rendering an archive. The theme default is 25;
+  # the example site uses 6 so that both the over- and under-limit states are
+  # visible in a small demo corpus.
+  taxonomyPageLimit = 6
+
+  # Every paginated surface is sized independently.
+  [params.pagination]
+    home = 6                      # results per page in the content panel
+    term = 6                      # results per page on a taxonomy archive
+    search = 6                    # results per page on the search page
+    tagsGrid = 18                 # buttons per page on /tags/
+    tagsGridMobile = 12
+    sidebarCategories = 7         # categories per sidebar page
+    sidebarCategoriesMobile = 6
+    sidebarTags = 9               # tags per sidebar page
+    sidebarTagsMobile = 8
+
+  [params.sidebar]
+    width = 282                   # default; the visitor's drag is persisted
+    minWidth = 190
+    maxWidth = 460
+
+  [params.search]
+    backend = "pagefind"          # pagefind | bluge
+    bundlePath = "/pagefind/pagefind.js"
+    endpoint = "/api/search"      # bluge only
+
+  [params.scale]
+    # Ceiling on generated home pager pages (decision D1 in PLAN.md). Past this
+    # the home view stops paginating and points at search instead. Keeps build
+    # time bounded on corpora of 100k+ pages.
+    maxHomePagerPages = 500
+
+  [params.footer]
+    rss = true
+    sourceURL = "https://github.com/renesugar/hugo-theme-ledger"
+
+[outputs]
+  home = ["html", "rss"]
+  section = ["html"]
+  term = ["html"]

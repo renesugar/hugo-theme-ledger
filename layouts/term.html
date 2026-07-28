@@ -1,0 +1,10 @@
+{{ define "main" }}
+{{/* Step 6 replaces this with the archive heading block, result list and the
+     over-limit stub (decision D2 in PLAN.md). */}}
+<h1>{{ .Title }}</h1>
+<ul>
+  {{ range (.Paginate .Pages (int (or site.Params.pagination.term 6))).Pages }}
+    <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>
+  {{ end }}
+</ul>
+{{ end }}

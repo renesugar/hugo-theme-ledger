@@ -1,0 +1,28 @@
+# Hugo
+/public/
+/resources/_gen/
+/exampleSite/public/
+/exampleSite/resources/_gen/
+.hugo_build.lock
+hugo_stats.json
+
+# Pagefind
+/pagefind/
+/exampleSite/static/pagefind/
+/exampleSite/public/pagefind/
+
+# Node
+/node_modules/
+npm-debug.log*
+yarn-error.log*
+
+# Scale-test corpora and reports (regenerate with scripts/gen-corpus.js)
+/tmp-corpus/
+/bench/out/
+
+# Editors / OS
+*~
+*.swp
+.DS_Store
+.idea/
+.vscode/

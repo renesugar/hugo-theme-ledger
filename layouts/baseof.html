@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="{{ or site.Language.Locale "en" }}" data-theme="{{ or site.Params.defaultTheme "light" }}">
+<head>
+  {{ partial "head.html" . }}
+</head>
+<body>
+  <a class="ledger-sr-only" href="#ledger-main">Skip to content</a>
+
+  <div class="ledger-shell">
+
+    {{/* Step 2 — header (desktop + mobile) and theme selector plug in here. */}}
+
+    <div class="ledger-body">
+
+      {{/* Step 3 — sidebar, mobile drawer backdrop and split bar plug in here. */}}
+
+      <main class="ledger-main" id="ledger-main" data-scroll tabindex="-1">
+        <div class="ledger-content">
+          {{ block "main" . }}{{ end }}
+        </div>
+
+        {{/* Step 2 — footer plugs in here. */}}
+      </main>
+
+    </div>
+  </div>
+
+  {{ block "scripts" . }}{{ end }}
+</body>
+</html>

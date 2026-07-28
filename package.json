@@ -1,0 +1,17 @@
+{
+  "name": "hugo-theme-ledger",
+  "version": "0.1.0",
+  "description": "Ledger — a Hugo knowledge-base theme with Pagefind search, built for large sites.",
+  "license": "Apache-2.0",
+  "private": true,
+  "scripts": {
+    "dev": "hugo server --source exampleSite --themesDir ../.. --disableFastRender",
+    "build": "hugo --source exampleSite --themesDir ../..",
+    "index": "pagefind --site exampleSite/public",
+    "build:indexed": "npm run build && npm run index",
+    "serve:dist": "hugo server --source exampleSite --themesDir ../.. --renderToDisk"
+  },
+  "devDependencies": {
+    "pagefind": "^1.5.0"
+  }
+}

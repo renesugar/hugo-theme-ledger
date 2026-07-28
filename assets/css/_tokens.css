@@ -1,0 +1,88 @@
+/* Design tokens. Values are final — see the handoff README "Design tokens".
+   Set on <html data-theme="..."> by the pre-paint script in _partials/head.html. */
+
+[data-theme="light"] {
+  --bg: #f4f4f2;
+  --panel: #ffffff;
+  --panel2: #fafaf8;
+  --text: #1d1f22;
+  --dim: #63686e;
+  --faint: #9a9fa5;
+  --border: #e7e7e3;
+  --hover: #f2f2ef;
+  --sel: oklch(0.955 0.017 255);
+  --accent: oklch(0.55 0.115 255);
+  --chip: #f1f1ed;
+  --chipText: #5f646b;
+  --shadow: 0 1px 2px rgba(20, 20, 25, .05), 0 8px 24px rgba(20, 20, 25, .05);
+}
+
+[data-theme="dark"] {
+  --bg: #141618;
+  --panel: #1d2023;
+  --panel2: #212529;
+  --text: #e9eaec;
+  --dim: #a2a7ad;
+  --faint: #71767d;
+  --border: #2b2f34;
+  --hover: #262a2f;
+  --sel: oklch(0.33 0.045 255);
+  --accent: oklch(0.76 0.1 255);
+  --chip: #282c31;
+  --chipText: #aeb3ba;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px rgba(0, 0, 0, .35);
+}
+
+[data-theme="contrast"] {
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --panel2: #ffffff;
+  --text: #000000;
+  --dim: #26262a;
+  --faint: #4a4a50;
+  --border: #000000;
+  --hover: #efefef;
+  --sel: oklch(0.93 0.055 255);
+  --accent: oklch(0.42 0.2 258);
+  --chip: #ffffff;
+  --chipText: #000000;
+  --shadow: none;
+}
+
+:root {
+  /* Type stacks. The Unicode glyphs the design relies on (⌕ U+2315, ⧖ U+29D6,
+     ▸ ▼ ▶ ‹ › ✓) are absent from Manrope and IBM Plex Mono, so both stacks end
+     in system faces that carry them. */
+  --font-sans: Manrope, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "DejaVu Sans Mono", monospace;
+
+  /* Shell geometry */
+  --header-height: 56px;
+  --sidebar-width: 282px;
+  --sidebar-min: 190px;
+  --sidebar-max: 460px;
+  --split-width: 7px;
+
+  /* Radii, named for what they belong to rather than by size */
+  --r-card: 13px;
+  --r-menu: 11px;
+  --r-hero: 12px;
+  --r-input: 10px;
+  --r-button: 9px;
+  --r-row: 8px;
+  --r-chip: 5px;
+
+  --gap-block: 18px;
+  --gap-result: 11px;
+}
+
+/* Every bordered surface thickens in the high-contrast theme. */
+[data-theme="contrast"] [data-card] {
+  border-width: 2px;
+}
+
+@media (max-width: 899px) {
+  :root {
+    --header-height: 52px;
+  }
+}

@@ -1,0 +1,9 @@
+{{ define "main" }}
+{{/* Step 7 replaces this with the flat-rectangle tags grid. */}}
+<h1>{{ .Title }}</h1>
+<ul>
+  {{ range .Pages }}
+    <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a> {{ len .Pages }}</li>
+  {{ end }}
+</ul>
+{{ end }}

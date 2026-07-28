@@ -1,0 +1,13 @@
+name = "Ledger"
+license = "Apache-2.0"
+licenselink = "https://github.com/renesugar/hugo-theme-ledger/blob/main/LICENSE"
+description = "A personal knowledge-base theme: resizable sidebar of paginated categories and tags, Pagefind-backed in-page search, and three themes. Built to stay fast at 100k+ pages."
+homepage = "https://github.com/renesugar/hugo-theme-ledger"
+demosite = "https://github.com/renesugar/hugo-theme-ledger"
+tags = ["knowledge base", "notes", "search", "pagefind", "documentation", "dark mode", "accessible"]
+features = ["search", "taxonomies", "pagination", "responsive", "dark mode", "high contrast"]
+min_version = "0.146.0"
+
+[author]
+  name = "Rene Sugar"
+  homepage = "https://github.com/renesugar"

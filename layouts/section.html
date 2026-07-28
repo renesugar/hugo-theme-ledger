@@ -1,10 +1,30 @@
 {{ define "main" }}
-{{/* Sections are not a designed view. Bounded listing so the URL is never a 404. */}}
-<h1>{{ .Title }}</h1>
-{{ .Content }}
-<ul>
-  {{ range (.Paginate .Pages (int (or site.Params.pagination.term 6))).Pages }}
-    <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>
-  {{ end }}
-</ul>
+{{/* Sections are not one of the designed views, but they are a real URL and the
+     natural generic list, so they render with the same shared parts as the
+     archive: heading block, result cards, server-rendered pagination. */}}
+{{- $per := int (site.Params.pagination.term | default 6) -}}
+{{- $paginator := .Paginate .Pages $per -}}
+
+<div class="ledger-heading">
+  <span class="ledger-eyebrow">Section</span>
+  <h1>{{ .Title }}</h1>
+  <span class="ledger-heading-meta">
+    {{- lang.FormatNumber 0 $paginator.TotalNumberOfElements }}
+    {{- cond (eq $paginator.TotalNumberOfElements 1) " note" " notes" }}
+    {{- if gt $paginator.TotalPages 1 }} · Page {{ $paginator.PageNumber }} of {{ $paginator.TotalPages }}{{ end -}}
+  </span>
+</div>
+
+{{- with .Content }}{{ . }}{{ end }}
+
+{{ if $paginator.Pages }}
+<div class="ledger-results">
+  {{- range $paginator.Pages }}
+  {{ partial "result-card.html" . }}
+  {{- end }}
+</div>
+{{ partial "pagination.html" (dict "paginator" $paginator) }}
+{{ else }}
+{{ partial "empty-results.html" (dict "query" "") }}
+{{ end }}
 {{ end }}

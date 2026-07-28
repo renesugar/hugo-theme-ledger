@@ -1,0 +1,330 @@
+/* Shared content-panel pieces: search bar, result cards, pagination, and the
+   empty-results state. Used by the home, archive and search views. */
+
+/* ── Search bar ──────────────────────────────────────────────────────────── */
+
+.ledger-searchbar {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.ledger-searchbar-row {
+  display: flex;
+  gap: 9px;
+  align-items: stretch;
+}
+
+.ledger-searchbar-field {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-input);
+  padding: 0 13px;
+  box-shadow: var(--shadow);
+}
+
+.ledger-searchbar-glyph {
+  font: 12px/1 var(--font-sans);
+  color: var(--faint);
+  flex: 0 0 auto;
+}
+
+.ledger-searchbar-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--text);
+  font: 400 14px/1 var(--font-sans);
+  padding: 13px 0;
+}
+
+/* The design supplies its own × affordance. */
+.ledger-searchbar-input::-webkit-search-cancel-button,
+.ledger-searchbar-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.ledger-searchbar-clear {
+  font: 13px/1 var(--font-sans);
+  color: var(--faint);
+  padding: 4px;
+  flex: 0 0 auto;
+}
+
+.ledger-searchbar-clear:hover {
+  color: var(--text);
+}
+
+.ledger-searchbar-clear[hidden] {
+  display: none;
+}
+
+.ledger-searchbar-run {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  border-radius: var(--r-input);
+  background: var(--accent);
+  color: #fff;
+  font: 17px/1 var(--font-sans);
+  box-shadow: var(--shadow);
+}
+
+.ledger-searchbar-run:hover {
+  filter: brightness(1.08);
+}
+
+.ledger-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 0 2px;
+}
+
+.ledger-meta-count {
+  font: 500 12px/1.4 var(--font-mono);
+  color: var(--dim);
+}
+
+.ledger-meta-page {
+  font: 400 12px/1.4 var(--font-mono);
+  color: var(--faint);
+}
+
+/* ── Result cards ────────────────────────────────────────────────────────── */
+
+.ledger-results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap-result);
+}
+
+.ledger-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  padding: 17px 19px;
+  box-shadow: var(--shadow);
+}
+
+.ledger-card:hover {
+  border-color: var(--accent);
+}
+
+.ledger-card-title {
+  font: 600 16.5px/1.35 var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.ledger-card-summary {
+  font: 400 13.5px/1.6 var(--font-sans);
+  color: var(--dim);
+}
+
+.ledger-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+}
+
+.ledger-chip-category {
+  font: 500 10.5px/1 var(--font-mono);
+  color: var(--accent);
+  background: var(--sel);
+  padding: 4px 7px;
+  border-radius: var(--r-chip);
+}
+
+.ledger-chip-tag {
+  font: 400 10.5px/1 var(--font-mono);
+  color: var(--chipText);
+  background: var(--chip);
+  padding: 4px 7px;
+  border-radius: var(--r-chip);
+}
+
+.ledger-card-date {
+  font: 400 10.5px/1 var(--font-mono);
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* ── Pagination ──────────────────────────────────────────────────────────── */
+
+.ledger-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  padding: 8px 0 4px;
+}
+
+.ledger-page-step,
+.ledger-page-number {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-row);
+  color: var(--dim);
+}
+
+.ledger-page-step {
+  font: 500 12.5px/1 var(--font-sans);
+  padding: 9px 13px;
+}
+
+.ledger-page-number {
+  font: 500 12.5px/1 var(--font-mono);
+  padding: 9px 6px;
+  min-width: 36px;
+  text-align: center;
+}
+
+.ledger-page-step:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ledger-page-number:hover {
+  border-color: var(--accent);
+}
+
+.ledger-page-number[aria-current="page"] {
+  background: var(--sel);
+  color: var(--accent);
+}
+
+.ledger-page-step[aria-disabled="true"] {
+  color: var(--faint);
+  pointer-events: none;
+}
+
+.ledger-page-gap {
+  font: 500 12.5px/1 var(--font-mono);
+  color: var(--faint);
+  padding: 9px 4px;
+}
+
+/* The terminal card shown when a very large corpus hits the home pager
+   ceiling (decision D1) — it replaces further pages with a route into search. */
+.ledger-page-ceiling {
+  width: 100%;
+  text-align: center;
+  font: 500 12px/1.6 var(--font-mono);
+  color: var(--dim);
+  background: var(--panel2);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-button);
+  padding: 12px;
+}
+
+.ledger-page-ceiling a {
+  color: var(--accent);
+}
+
+/* ── Empty results ───────────────────────────────────────────────────────── */
+
+.ledger-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  padding: 52px 28px;
+  background: var(--panel);
+  border: 1px dashed var(--border);
+  border-radius: var(--r-card);
+  text-align: center;
+}
+
+.ledger-empty-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: var(--r-menu);
+  background: var(--chip);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 16px/1 var(--font-sans);
+  color: var(--faint);
+}
+
+.ledger-empty-title {
+  font: 600 16px/1.3 var(--font-sans);
+  color: var(--text);
+}
+
+.ledger-empty-help {
+  font: 400 13.5px/1.6 var(--font-sans);
+  color: var(--dim);
+  max-width: 380px;
+}
+
+.ledger-empty-help code {
+  font-family: var(--font-mono);
+  font-size: 1em;
+  color: var(--accent);
+}
+
+.ledger-empty-suggestions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+
+.ledger-suggestion {
+  font: 500 11.5px/1 var(--font-mono);
+  color: var(--dim);
+  background: var(--chip);
+  padding: 8px 11px;
+  border-radius: 7px;
+}
+
+.ledger-suggestion:hover {
+  color: var(--accent);
+}
+
+/* ── Archive heading block ───────────────────────────────────────────────── */
+
+.ledger-heading {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 2px 2px 0;
+}
+
+.ledger-eyebrow {
+  font: 600 10.5px/1 var(--font-mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.ledger-heading h1 {
+  font: 700 27px/1.2 var(--font-sans);
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.ledger-heading-meta {
+  font: 400 12px/1.4 var(--font-mono);
+  color: var(--dim);
+}

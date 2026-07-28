@@ -1,0 +1,61 @@
+{{- /* Server-rendered content pagination. Context:
+         paginator — a Hugo paginator
+         ceiling   — optional cap on pages to link (0 = uncapped)
+
+       Every control is a real <a href> to a paginator URL, so pages stay
+       crawlable and shareable. Number windowing matches the sidebar
+       mini-pager: page 1, current ±1, last, with … wherever the run skips.
+
+       `ceiling` exists for the home view on very large corpora (decision D1 in
+       PLAN.md): past it the pager stops and hands off to search rather than
+       generating tens of thousands of pager pages. */ -}}
+
+{{- $paginator := .paginator -}}
+{{- $ceiling := int (.ceiling | default 0) -}}
+{{- $cur := $paginator.PageNumber -}}
+{{- $total := $paginator.TotalPages -}}
+{{- $capped := and (gt $ceiling 0) (gt $total $ceiling) -}}
+{{- if $capped }}{{ $total = $ceiling }}{{ end -}}
+
+{{- if gt $total 1 }}
+{{- $want := slice -}}
+{{- range (slice 1 (sub $cur 1) $cur (add $cur 1) $total) -}}
+  {{- if and (ge . 1) (le . $total) -}}{{- $want = $want | append . -}}{{- end -}}
+{{- end -}}
+{{- $want = $want | uniq | sort -}}
+
+<nav class="ledger-pagination" aria-label="Pagination">
+  {{- if $paginator.HasPrev }}
+  <a class="ledger-page-step" href="{{ $paginator.Prev.URL }}" rel="prev">&#x2039; Prev</a>
+  {{- else }}
+  <span class="ledger-page-step" aria-disabled="true">&#x2039; Prev</span>
+  {{- end }}
+
+  {{- $prev := 0 }}
+  {{- range $want }}
+    {{- if gt (sub . $prev) 1 }}
+  <span class="ledger-page-gap" aria-hidden="true">&hellip;</span>
+    {{- end }}
+    {{- if eq . $cur }}
+  <a class="ledger-page-number" href="{{ (index $paginator.Pagers (sub . 1)).URL }}" aria-current="page">{{ . }}</a>
+    {{- else }}
+  <a class="ledger-page-number" href="{{ (index $paginator.Pagers (sub . 1)).URL }}">{{ . }}</a>
+    {{- end }}
+    {{- $prev = . }}
+  {{- end }}
+
+  {{- if and $paginator.HasNext (lt $cur $total) }}
+  <a class="ledger-page-step" href="{{ $paginator.Next.URL }}" rel="next">Next &#x203A;</a>
+  {{- else }}
+  <span class="ledger-page-step" aria-disabled="true">Next &#x203A;</span>
+  {{- end }}
+</nav>
+
+{{- if $capped }}
+<p class="ledger-page-ceiling">
+  Showing the first {{ lang.FormatNumber 0 (mul $total $paginator.PagerSize) }} of
+  {{ lang.FormatNumber 0 $paginator.TotalNumberOfElements }} notes.
+  <a href="{{ "/search/" | relURL }}">Search</a> to narrow them down.
+</p>
+{{- end }}
+{{- end }}

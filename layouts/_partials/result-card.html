@@ -1,0 +1,32 @@
+{{- /* One result card. Context: a Page.
+
+       The whole card is the link, so the category and tag chips are plain
+       spans — nesting anchors inside an anchor is invalid and breaks keyboard
+       navigation. Chips route to their terms on the archive and post views,
+       where they are not inside a card link. */ -}}
+
+{{- $category := index (.Params.categories | default slice) 0 -}}
+{{- $tags := .Params.tags | default slice -}}
+{{- $reading := .Params.readingTime | default .ReadingTime -}}
+
+<a class="ledger-card" data-card href="{{ .RelPermalink }}">
+  <h3 class="ledger-card-title">{{ .LinkTitle }}</h3>
+
+  {{- with or .Params.summary .Summary }}
+  <p class="ledger-card-summary">{{ . | plainify | truncate 220 }}</p>
+  {{- end }}
+
+  <div class="ledger-card-meta">
+    {{- with $category }}
+    <span class="ledger-chip-category">{{ . }}</span>
+    {{- end }}
+    {{- range first 4 $tags }}
+    <span class="ledger-chip-tag">#{{ . }}</span>
+    {{- end }}
+    <span class="ledger-spacer" style="min-width:8px"></span>
+    <span class="ledger-card-date">
+      {{- with .Date }}{{ .Format "2006-01-02" }}{{ end -}}
+      {{- with $reading }} · {{ . }} min{{ end -}}
+    </span>
+  </div>
+</a>

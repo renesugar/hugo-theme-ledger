@@ -1,0 +1,35 @@
+{{- /* Empty-results state. Context:
+         query       — the query that matched nothing
+         suggestions — optional slice of {label, url}; defaults to the three
+                       largest categories, which are always non-empty by
+                       construction and so always recover the visitor. */ -}}
+
+{{- $query := .query | default "" -}}
+{{- $suggestions := .suggestions -}}
+{{- if not $suggestions -}}
+  {{- $limit := int (site.Params.taxonomyPageLimit | default 25) -}}
+  {{- $catKey := site.Params.taxonomy.categoryPlural | default "categories" -}}
+  {{- $top := partial "term-list.html" (dict "key" $catKey "limit" $limit "max" 3 "order" "count" "prefix" "category") -}}
+  {{- $suggestions = slice -}}
+  {{- range $top.terms -}}
+    {{- $suggestions = $suggestions | append (dict "label" (printf "category:%s" .name) "url" .url) -}}
+  {{- end -}}
+{{- end -}}
+
+<div class="ledger-empty" data-card data-ledger-empty>
+  <div class="ledger-empty-icon" aria-hidden="true">&#x2315;</div>
+  <p class="ledger-empty-title">
+    No notes match {{ with $query }}&ldquo;{{ . }}&rdquo;{{ else }}that query{{ end }}
+  </p>
+  <p class="ledger-empty-help">
+    Try a broader term, or filter by a field:
+    <code>category:Recipes</code>, <code>tag:sourdough</code>.
+  </p>
+  {{- with $suggestions }}
+  <div class="ledger-empty-suggestions">
+    {{- range . }}
+    <a class="ledger-suggestion" href="{{ .url }}">{{ .label }}</a>
+    {{- end }}
+  </div>
+  {{- end }}
+</div>

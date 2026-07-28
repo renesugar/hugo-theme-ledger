@@ -1,0 +1,43 @@
+{{- /* Search bar for the home and search views. Context:
+         query   — the current query string, may be empty
+         count   — result count, or nil to omit the meta line
+         page    — current page number (1-based)
+         pages   — total pages
+
+       It is a real GET form pointing at /search/, so submitting works with no
+       JavaScript at all; the search page then reads ?q= on load. The ⧖ button
+       is the submit control, which also gives Enter-in-the-input the same
+       behaviour without a key handler. */ -}}
+
+{{- $query := .query | default "" -}}
+
+<div class="ledger-searchbar">
+  <form class="ledger-searchbar-row" role="search" method="get"
+        action="{{ "/search/" | relURL }}" data-ledger-search-form>
+    <div class="ledger-searchbar-field" data-card>
+      <span class="ledger-searchbar-glyph" aria-hidden="true">&#x2315;</span>
+      <label class="ledger-sr-only" for="ledger-q">Search notes</label>
+      <input class="ledger-searchbar-input" id="ledger-q" name="q" type="search"
+             value="{{ $query }}" autocomplete="off" spellcheck="false"
+             placeholder="Search notes — try category:Recipes or tag:sourdough"
+             data-ledger-search-input>
+      <button type="button" class="ledger-searchbar-clear" data-ledger-search-clear
+              aria-label="Clear search" {{ if not $query }}hidden{{ end }}>&times;</button>
+    </div>
+    <button type="submit" class="ledger-searchbar-run" aria-label="Run search" title="Run query">
+      <span aria-hidden="true">&#x29D6;</span>
+    </button>
+  </form>
+
+  {{- if ne .count nil }}
+  <div class="ledger-meta">
+    <span class="ledger-meta-count" data-ledger-result-count aria-live="polite">
+      {{- lang.FormatNumber 0 .count }} {{ cond (eq .count 1) "result" "results" -}}
+      {{- with $query }} for {{ . }}{{ end -}}
+    </span>
+    {{- if gt (.pages | default 1) 1 }}
+    <span class="ledger-meta-page" data-ledger-result-page>Page {{ .page }} of {{ lang.FormatNumber 0 .pages }}</span>
+    {{- end }}
+  </div>
+  {{- end }}
+</div>

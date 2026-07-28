@@ -399,6 +399,28 @@
     );
   }
 
+  /* ── Search bar ────────────────────────────────────────────────────────── */
+
+  function initSearchBar() {
+    var input = document.querySelector('[data-ledger-search-input]');
+    var clear = document.querySelector('[data-ledger-search-clear]');
+    if (!input || !clear) return;
+
+    function sync() {
+      clear.hidden = input.value === '';
+    }
+
+    // Per the handoff, × clears the field but does not re-run the query.
+    clear.addEventListener('click', function () {
+      input.value = '';
+      sync();
+      input.focus();
+    });
+
+    input.addEventListener('input', sync);
+    sync();
+  }
+
   /* ── Split bar ─────────────────────────────────────────────────────────── */
 
   function initSplit() {
@@ -463,6 +485,7 @@
     markActiveDrawerNav();
     markActiveServerRows();
     initTerms();
+    initSearchBar();
     initSplit();
   }
 

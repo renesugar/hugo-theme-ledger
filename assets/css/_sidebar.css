@@ -1,0 +1,317 @@
+/* Sidebar: category and tag panels, mini-pager, mobile drawer, split bar. */
+
+.ledger-sidebar {
+  width: var(--sidebar-width);
+  flex: 0 0 auto;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ── Panels ──────────────────────────────────────────────────────────────── */
+
+.ledger-panel {
+  padding: 16px 12px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.ledger-panel[data-panel="tags"] {
+  padding: 16px 12px 20px;
+  border-bottom: none;
+}
+
+.ledger-panel-heading {
+  font: inherit;
+  margin: 0;
+}
+
+.ledger-panel-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px 10px;
+  width: 100%;
+}
+
+.ledger-panel-caret {
+  font: 9px/1 var(--font-sans);
+  color: var(--faint);
+  width: 10px;
+  flex: 0 0 auto;
+  text-align: left;
+}
+
+/* Caret glyph comes from CSS so the collapsed state restored by the pre-paint
+   script never shows the wrong direction. */
+.ledger-panel-caret::before {
+  content: "\25BC";
+}
+
+[data-categories-closed] .ledger-panel[data-panel="categories"] .ledger-panel-caret::before,
+[data-tags-closed] .ledger-panel[data-panel="tags"] .ledger-panel-caret::before {
+  content: "\25B6";
+}
+
+[data-categories-closed] .ledger-panel[data-panel="categories"] .ledger-panel-body,
+[data-tags-closed] .ledger-panel[data-panel="tags"] .ledger-panel-body {
+  display: none;
+}
+
+.ledger-panel-eyebrow {
+  font: 600 10.5px/1 var(--font-mono);
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--faint);
+  flex: 1;
+  text-align: left;
+}
+
+.ledger-panel-total {
+  font: 10px/1 var(--font-mono);
+  color: var(--faint);
+}
+
+.ledger-panel-more {
+  display: block;
+  padding: 8px 6px 2px;
+  font: 400 10.5px/1 var(--font-mono);
+  color: var(--dim);
+}
+
+.ledger-panel-more:hover {
+  color: var(--accent);
+}
+
+/* ── Term rows ───────────────────────────────────────────────────────────── */
+
+.ledger-term-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ledger-term {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 8px 7px 6px;
+  border-radius: var(--r-row);
+}
+
+.ledger-term:hover {
+  background: var(--hover);
+}
+
+.ledger-term[data-active="true"] {
+  background: var(--sel);
+}
+
+.ledger-term[data-active="true"] .ledger-term-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ledger-term-glyph {
+  color: var(--faint);
+  width: 9px;
+  flex: 0 0 auto;
+}
+
+[data-panel="categories"] .ledger-term-glyph {
+  font: 8px/1 var(--font-sans);
+}
+
+[data-panel="tags"] .ledger-term-glyph {
+  font: 11px/1 var(--font-mono);
+}
+
+.ledger-term-name {
+  flex: 1;
+  min-width: 0;
+  font: 500 13.5px/1.3 var(--font-sans);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-panel="tags"] .ledger-term-name {
+  font-size: 13px;
+}
+
+.ledger-term-over {
+  font: 12px/1 var(--font-sans);
+  color: var(--accent);
+  opacity: .8;
+  flex: 0 0 auto;
+}
+
+.ledger-term-count {
+  font: 500 10.5px/1 var(--font-mono);
+  color: var(--chipText);
+  background: var(--chip);
+  padding: 4px 6px;
+  border-radius: var(--r-chip);
+  min-width: 22px;
+  text-align: center;
+  flex: 0 0 auto;
+}
+
+/* ── Mini-pager ──────────────────────────────────────────────────────────── */
+
+.ledger-minipager {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 11px 4px 2px;
+}
+
+.ledger-minipager:empty,
+.ledger-minipager[hidden] {
+  display: none;
+}
+
+.ledger-minipager-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ledger-minipager-step,
+.ledger-minipager-page {
+  font: 400 11px/1 var(--font-mono);
+  color: var(--dim);
+  padding: 5px 7px;
+  border-radius: var(--r-chip);
+  min-width: 20px;
+  text-align: center;
+}
+
+.ledger-minipager-step {
+  color: var(--faint);
+  padding: 5px 6px;
+  min-width: 0;
+}
+
+.ledger-minipager-step:hover:not(:disabled),
+.ledger-minipager-page:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.ledger-minipager-step:disabled {
+  opacity: .35;
+  cursor: default;
+}
+
+.ledger-minipager-page[aria-current="true"] {
+  background: var(--sel);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.ledger-minipager-gap {
+  font: 400 11px/1 var(--font-mono);
+  color: var(--faint);
+  padding: 5px 2px;
+}
+
+.ledger-minipager-range {
+  font: 400 10px/1 var(--font-mono);
+  color: var(--faint);
+  white-space: nowrap;
+}
+
+/* ── Split bar ───────────────────────────────────────────────────────────── */
+
+.ledger-split {
+  flex: 0 0 auto;
+  width: var(--split-width);
+  margin: 0 -1px;
+  cursor: col-resize;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+}
+
+.ledger-split:hover,
+.ledger-split:focus-visible {
+  background: var(--sel);
+}
+
+.ledger-split-grip {
+  width: 1px;
+  height: 26px;
+  background: var(--faint);
+  opacity: .55;
+  border-radius: 1px;
+}
+
+/* ── Drawer (mobile) ─────────────────────────────────────────────────────── */
+
+.ledger-drawer-nav {
+  display: none;
+}
+
+.ledger-backdrop[hidden] {
+  display: none;
+}
+
+@media (max-width: 899px) {
+  .ledger-sidebar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 30;
+    width: 302px;
+    box-shadow: 0 18px 50px rgba(0, 0, 0, .32);
+    transform: translateX(-100%);
+    visibility: hidden;
+  }
+
+  [data-drawer-open] .ledger-sidebar {
+    transform: none;
+    visibility: visible;
+  }
+
+  .ledger-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(10, 10, 12, .42);
+    z-index: 25;
+  }
+
+  .ledger-split {
+    display: none;
+  }
+
+  .ledger-drawer-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .ledger-drawer-nav a {
+    font: 500 13.5px/1 var(--font-sans);
+    color: var(--dim);
+    padding: 9px 8px;
+    border-radius: var(--r-row);
+  }
+
+  .ledger-drawer-nav a:hover {
+    background: var(--hover);
+  }
+
+  .ledger-drawer-nav a[aria-current="page"] {
+    color: var(--accent);
+    background: var(--sel);
+  }
+}

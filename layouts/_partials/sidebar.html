@@ -1,0 +1,122 @@
+{{- /* The sidebar is byte-identical on every page, so baseof calls it through
+       partialCached with no variant key: it renders once per build. The active
+       row is marked client-side from location.pathname, which is what keeps it
+       cacheable — see decision D3 in PLAN.md.
+
+       Only the first page of each panel is inlined. The remaining terms live in
+       one fingerprinted JSON asset shared by the whole site, so per-page HTML
+       stays constant instead of growing with the number of terms — the reason a
+       50k-tag site does not ship 50k rows on every page. The asset is fetched
+       once per visit (it also positions the panel on the active term) and is
+       immutable, so it is served from cache for the rest of the session. */ -}}
+
+{{- $p := site.Params -}}
+{{- $limit := int ($p.taxonomyPageLimit | default 25) -}}
+{{- $maxTerms := int ($p.sidebar.maxTerms | default 200) -}}
+{{- $order := $p.sidebar.order | default "count" -}}
+{{- $catKey := $p.taxonomy.categoryPlural | default "categories" -}}
+{{- $tagKey := $p.taxonomy.tagPlural | default "tags" -}}
+
+{{- $catsPer := int ($p.pagination.sidebarCategories | default 7) -}}
+{{- $catsPerMobile := int ($p.pagination.sidebarCategoriesMobile | default 6) -}}
+{{- $tagsPer := int ($p.pagination.sidebarTags | default 9) -}}
+{{- $tagsPerMobile := int ($p.pagination.sidebarTagsMobile | default 8) -}}
+
+{{- $cats := partial "term-list.html" (dict "key" $catKey "limit" $limit "max" $maxTerms "order" $order "prefix" "category") -}}
+{{- $tags := partial "term-list.html" (dict "key" $tagKey "limit" $limit "max" $maxTerms "order" $order "prefix" "tag") -}}
+
+{{- /* Synthetic "All notes" row. The handoff's query grammar defines
+       `category:All notes` as matching everything, and Home primes its search
+       bar from the first sidebar category, so it belongs at the top of the
+       list rather than being special-cased in the Home template. */ -}}
+{{- $allLabel := $p.sidebar.allNotesLabel | default "All notes" -}}
+{{- $catItems := $cats.terms -}}
+{{- $catTotal := $cats.total -}}
+{{- if $allLabel -}}
+  {{- $notes := 0 -}}
+  {{- range site.Params.mainSections | default (slice "notes") -}}
+    {{- with site.GetPage (printf "/%s" .) -}}{{- $notes = add $notes (len .RegularPages) -}}{{- end -}}
+  {{- end -}}
+  {{- $allURL := printf "%s?q=%s" ("/search/" | relURL) (printf "category:%s" $allLabel | urlquery) -}}
+  {{- $catItems = (slice (dict "name" $allLabel "url" $allURL "count" $notes "over" (gt $notes $limit))) | append $catItems -}}
+  {{- $catTotal = add $catTotal 1 -}}
+{{- end -}}
+
+{{- /* One shared, fingerprinted terms asset for client-side paging. */ -}}
+{{- $termsJSON := dict "categories" $catItems "tags" $tags.terms
+      | jsonify | resources.FromString "ledger/terms.json" | fingerprint -}}
+
+<aside class="ledger-sidebar" id="ledger-sidebar" data-scroll
+       data-ledger-sidebar data-terms-url="{{ $termsJSON.RelPermalink }}">
+
+  {{/* Below 900px the header nav is hidden, so the drawer carries it. */}}
+  <nav class="ledger-drawer-nav" aria-label="Main (drawer)">
+    <a href="{{ site.Home.RelPermalink }}" data-ledger-drawer-close>Home</a>
+    <a href="{{ "/tags/" | relURL }}" data-ledger-drawer-close>Tags</a>
+    <a href="{{ "/about/" | relURL }}" data-ledger-drawer-close>About</a>
+    <a href="{{ "/search/" | relURL }}" data-ledger-drawer-close>Search</a>
+  </nav>
+
+  {{- range slice
+        (dict "id" "categories" "label" "Categories" "glyph" "&#x25B8;" "items" $catItems
+              "total" $catTotal "per" $catsPer "perMobile" $catsPerMobile
+              "truncated" $cats.truncated "allURL" ("/categories/" | relURL))
+        (dict "id" "tags" "label" "Tags" "glyph" "#" "items" $tags.terms
+              "total" $tags.total "per" $tagsPer "perMobile" $tagsPerMobile
+              "truncated" $tags.truncated "allURL" ("/tags/" | relURL)) }}
+  <section class="ledger-panel" data-panel="{{ .id }}">
+
+    <h2 class="ledger-panel-heading">
+      <button type="button" class="ledger-panel-header" data-ledger-panel-toggle="{{ .id }}"
+              aria-expanded="true" aria-controls="ledger-panel-{{ .id }}">
+        <span class="ledger-panel-caret" aria-hidden="true"></span>
+        <span class="ledger-panel-eyebrow">{{ .label }}</span>
+        <span class="ledger-panel-total">{{ lang.FormatNumber 0 .total }}</span>
+      </button>
+    </h2>
+
+    <div class="ledger-panel-body" id="ledger-panel-{{ .id }}">
+      <div class="ledger-term-list" data-ledger-terms="{{ .id }}"
+           data-per-page="{{ .per }}" data-per-page-mobile="{{ .perMobile }}"
+           data-total="{{ .total }}">
+        {{- $glyph := .glyph }}
+        {{- range first .per .items }}
+        <a class="ledger-term" href="{{ .url }}" data-ledger-drawer-close
+           {{ if .over }}data-over="true"{{ end }}>
+          <span class="ledger-term-glyph" aria-hidden="true">{{ $glyph | safeHTML }}</span>
+          <span class="ledger-term-name">{{ .name }}</span>
+          {{- if .over }}
+          <span class="ledger-term-over" title="Over limit — opens the search page" aria-hidden="true">&#x2315;</span>
+          {{- end }}
+          <span class="ledger-term-count">{{ lang.FormatNumber 0 .count }}</span>
+        </a>
+        {{- end }}
+      </div>
+
+      <div class="ledger-minipager" data-ledger-minipager="{{ .id }}">
+        <button type="button" class="ledger-minipager-step" data-step="-1" aria-label="Previous page of {{ .label | lower }}">&#x2039;</button>
+        <span class="ledger-minipager-pages" data-pages></span>
+        <button type="button" class="ledger-minipager-step" data-step="1" aria-label="Next page of {{ .label | lower }}">&#x203A;</button>
+        <span class="ledger-spacer"></span>
+        <span class="ledger-minipager-range" data-range aria-live="polite"></span>
+      </div>
+
+      {{- if .truncated }}
+      <a class="ledger-panel-more" href="{{ .allURL }}">See all {{ lang.FormatNumber 0 .total }} &rarr;</a>
+      {{- end }}
+    </div>
+  </section>
+  {{- end }}
+
+</aside>
+
+<div class="ledger-backdrop" data-ledger-drawer-close hidden></div>
+
+<div class="ledger-split" data-ledger-split role="separator" tabindex="0"
+     aria-orientation="vertical" aria-label="Resize sidebar"
+     aria-valuemin="{{ $p.sidebar.minWidth | default 190 }}"
+     aria-valuemax="{{ $p.sidebar.maxWidth | default 460 }}"
+     aria-valuenow="{{ $p.sidebar.width | default 282 }}"
+     title="Drag to resize">
+  <span class="ledger-split-grip" aria-hidden="true"></span>
+</div>

@@ -5,6 +5,10 @@ theme = "hugo-theme-ledger"
 
 enableRobotsTXT = true
 
+# Terms are used verbatim in search queries (`tag:sourdough`), so they must not
+# be title-cased for display.
+capitalizeListTitles = false
+
 [taxonomies]
   category = "categories"
   tag = "tags"
@@ -50,6 +54,11 @@ enableRobotsTXT = true
     width = 282                   # default; the visitor's drag is persisted
     minWidth = 190
     maxWidth = 460
+    order = "count"               # count | alpha
+    allNotesLabel = "All notes"   # synthetic first category; "" disables it
+    # Cap on terms carried in the shared sidebar terms asset. Past this the
+    # panel links to the full taxonomy page instead of growing without bound.
+    maxTerms = 200
 
   [params.search]
     backend = "pagefind"          # pagefind | bluge
@@ -65,6 +74,11 @@ enableRobotsTXT = true
   [params.footer]
     rss = true
     sourceURL = "https://github.com/renesugar/hugo-theme-ledger"
+
+  # Plural forms the theme reads from [taxonomies] above.
+  [params.taxonomy]
+    categoryPlural = "categories"
+    tagPlural = "tags"
 
 [outputs]
   home = ["html", "rss"]

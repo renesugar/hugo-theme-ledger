@@ -1,0 +1,44 @@
+{{- /* Returns a bounded, ordered slice of taxonomy terms for the sidebar.
+
+       Params: key (taxonomy plural), limit (taxonomyPageLimit), max
+       (sidebar.maxTerms), order ("count" | "alpha"), prefix (query prefix,
+       "category" or "tag").
+
+       Cost is O(terms), never O(pages): it walks the taxonomy page tree Hugo
+       has already built rather than filtering site.RegularPages. The result is
+       capped at `max` so a site with 50k tags does not try to put 50k rows in
+       the sidebar — see decision D3 in PLAN.md.
+
+       Each item: name, url, count, over (bool). `url` already accounts for the
+       over-limit routing rule, so callers never re-derive it. */ -}}
+
+{{- $key := .key -}}
+{{- $limit := .limit -}}
+{{- $max := .max -}}
+{{- $order := .order -}}
+{{- $prefix := .prefix -}}
+{{- $searchURL := "/search/" | relURL -}}
+
+{{- $terms := slice -}}
+{{- with site.GetPage (printf "/%s" $key) -}}
+  {{- range .Pages -}}
+    {{- $name := or .Data.Term .LinkTitle -}}
+    {{- $count := len .Pages -}}
+    {{- $over := gt $count $limit -}}
+    {{- $url := .RelPermalink -}}
+    {{- if $over -}}
+      {{- $url = printf "%s?q=%s" $searchURL (printf "%s:%s" $prefix $name | urlquery) -}}
+    {{- end -}}
+    {{- $terms = $terms | append (dict "name" $name "url" $url "count" $count "over" $over) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- /* Order before truncating, so a capped list keeps the most useful terms. */ -}}
+{{- if eq $order "alpha" -}}
+  {{- $terms = sort $terms "name" -}}
+{{- else -}}
+  {{- $terms = sort (sort $terms "name") "count" "desc" -}}
+{{- end -}}
+
+{{- $total := len $terms -}}
+{{- return (dict "terms" (first $max $terms) "total" $total "truncated" (gt $total $max)) -}}

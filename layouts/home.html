@@ -1,5 +1,67 @@
 {{ define "main" }}
-{{/* Step 5 replaces this with the primed search bar, result list and pagination. */}}
-<h1>{{ site.Title }}</h1>
-{{ .Content }}
+{{- /* Home lands the visitor in the largest category with search already
+       primed. The first sidebar category is the synthetic "All notes" row, and
+       the handoff's grammar defines `category:All notes` as matching
+       everything — so the primed query and the rendered result set agree by
+       construction, and both mean "every note".
+
+       With sidebar.allNotesLabel disabled there is no synthetic row, so the bar
+       primes empty rather than with a category whose results would not match
+       what is listed below it.
+
+       Pages come from mainSections, not site.RegularPages, so standalone pages
+       like about.md and search.md are not listed as notes. */ -}}
+
+{{- $sections := site.Params.mainSections | default (slice "notes") -}}
+{{- $pages := slice -}}
+{{- if eq (len $sections) 1 -}}
+  {{- /* Already date-sorted by Hugo; skip re-sorting a potentially huge slice. */ -}}
+  {{- with site.GetPage (printf "/%s" (index $sections 0)) -}}
+    {{- $pages = .RegularPages -}}
+  {{- end -}}
+{{- else -}}
+  {{- range $sections -}}
+    {{- with site.GetPage (printf "/%s" .) -}}{{- $pages = $pages | append .RegularPages -}}{{- end -}}
+  {{- end -}}
+  {{- $pages = sort $pages "Date" "desc" -}}
+{{- end -}}
+
+{{- $allLabel := site.Params.sidebar.allNotesLabel | default "All notes" -}}
+{{- $query := cond (ne $allLabel "") (printf "category:%s" $allLabel) "" -}}
+
+{{- $per := int (site.Params.pagination.home | default 6) -}}
+{{- $ceiling := int (site.Params.scale.maxHomePagerPages | default 0) -}}
+
+{{- /* Decision D1: cap the *input* to the paginator, not just the links. Hugo
+       generates a page for every pager it is handed, so truncating here is what
+       keeps a 500k-note build from emitting tens of thousands of /page/N/
+       directories. Notes past the cap stay reachable through search. */ -}}
+{{- $totalAll := len $pages -}}
+{{- $truncatedFrom := 0 -}}
+{{- if gt $ceiling 0 -}}
+  {{- $maxItems := mul $ceiling $per -}}
+  {{- if gt $totalAll $maxItems -}}
+    {{- $pages = first $maxItems $pages -}}
+    {{- $truncatedFrom = $totalAll -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $paginator := .Paginate $pages $per -}}
+
+{{ partial "search-bar.html" (dict
+     "query" $query
+     "count" $paginator.TotalNumberOfElements
+     "page" $paginator.PageNumber
+     "pages" $paginator.TotalPages) }}
+
+{{ if $paginator.Pages }}
+<div class="ledger-results">
+  {{- range $paginator.Pages }}
+  {{ partial "result-card.html" . }}
+  {{- end }}
+</div>
+{{ partial "pagination.html" (dict "paginator" $paginator "truncatedFrom" $truncatedFrom) }}
+{{ else }}
+{{ partial "empty-results.html" (dict "query" $query) }}
+{{ end }}
 {{ end }}

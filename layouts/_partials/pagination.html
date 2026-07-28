@@ -1,21 +1,22 @@
 {{- /* Server-rendered content pagination. Context:
-         paginator — a Hugo paginator
-         ceiling   — optional cap on pages to link (0 = uncapped)
+         paginator     — a Hugo paginator
+         truncatedFrom — optional true element count when the caller capped the
+                         page set (0 = not capped)
 
        Every control is a real <a href> to a paginator URL, so pages stay
        crawlable and shareable. Number windowing matches the sidebar
        mini-pager: page 1, current ±1, last, with … wherever the run skips.
 
-       `ceiling` exists for the home view on very large corpora (decision D1 in
-       PLAN.md): past it the pager stops and hands off to search rather than
-       generating tens of thousands of pager pages. */ -}}
+       The cap for very large corpora (decision D1) is applied by the *caller*,
+       which truncates the slice before paginating. That is what actually bounds
+       the build: capping only the links here would still let Hugo generate
+       every pager page. This partial just reports the cap. */ -}}
 
 {{- $paginator := .paginator -}}
-{{- $ceiling := int (.ceiling | default 0) -}}
+{{- $truncatedFrom := int (.truncatedFrom | default 0) -}}
 {{- $cur := $paginator.PageNumber -}}
 {{- $total := $paginator.TotalPages -}}
-{{- $capped := and (gt $ceiling 0) (gt $total $ceiling) -}}
-{{- if $capped }}{{ $total = $ceiling }}{{ end -}}
+{{- $capped := gt $truncatedFrom $paginator.TotalNumberOfElements -}}
 
 {{- if gt $total 1 }}
 {{- $want := slice -}}
@@ -44,18 +45,18 @@
     {{- $prev = . }}
   {{- end }}
 
-  {{- if and $paginator.HasNext (lt $cur $total) }}
+  {{- if $paginator.HasNext }}
   <a class="ledger-page-step" href="{{ $paginator.Next.URL }}" rel="next">Next &#x203A;</a>
   {{- else }}
   <span class="ledger-page-step" aria-disabled="true">Next &#x203A;</span>
   {{- end }}
 </nav>
+{{- end }}
 
 {{- if $capped }}
 <p class="ledger-page-ceiling">
-  Showing the first {{ lang.FormatNumber 0 (mul $total $paginator.PagerSize) }} of
-  {{ lang.FormatNumber 0 $paginator.TotalNumberOfElements }} notes.
-  <a href="{{ "/search/" | relURL }}">Search</a> to narrow them down.
+  Showing the {{ lang.FormatNumber 0 $paginator.TotalNumberOfElements }} most recent of
+  {{ lang.FormatNumber 0 $truncatedFrom }} notes.
+  <a href="{{ "/search/" | relURL }}">Search</a> to reach the rest.
 </p>
-{{- end }}
 {{- end }}

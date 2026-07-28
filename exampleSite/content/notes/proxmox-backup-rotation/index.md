@@ -5,6 +5,8 @@ summary: "Three tiers, two media, one offsite. The rotation script and the reten
 categories: ["Homelab"]
 tags: ["backup", "proxmox", "linux"]
 readingTime: 9
+image: "cover.svg"
+imageAlt: "Three stacked backup tiers, each wider than the last"
 ---
 
 Mostly a reminder to myself, since I get this wrong every time.

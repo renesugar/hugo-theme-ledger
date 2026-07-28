@@ -10,6 +10,31 @@ The prototype's `support.js` is a mockup runtime and is **not** ported.
 - `hugo --source exampleSite --themesDir ../..` must succeed at the end of every step.
 - Commit after each step; the step number goes in the commit subject.
 
+## Verification
+
+Every step is exercised in a real browser before it is committed — not just
+built and eyeballed in the markup. A step is not done until each branch of the
+behaviour it adds has been driven and observed.
+
+**The example site is the test fixture.** Where a feature has branches, the
+corpus carries content that reaches each one, so a regression shows up on an
+ordinary build instead of only in production:
+
+| Fixture | Exercises |
+|---|---|
+| `taxonomyPageLimit = 6` with Recipes at 7 | over- and under-limit routing on every surface |
+| "All notes" synthetic category | the `matchAll` rule in the query grammar |
+| 18 tags against a 9/page sidebar | mini-pager windowing, ranges, mobile page size |
+| 16 notes at 6/page | multi-page pagination, disabled ends |
+| `proxmox-backup-rotation/` page bundle + `cover.svg` | hero image from a bundle resource |
+| `zfs-scrub-schedule` + `/img/hero-sample.svg` | hero image from a site-relative path |
+| every other note | the striped hero fallback |
+
+Branches that cannot ship in the corpus — the absolute-URL hero, the home pager
+ceiling, larger per-page sizes — are verified by temporarily changing config or
+front matter, confirming the result, and reverting. Search must be verified
+against `npm run preview`, since `hugo server` builds no Pagefind index.
+
 ---
 
 ## Architectural decisions
@@ -117,9 +142,11 @@ results, URL `?q=` and `?page=` sync, `aria-live` count, empty state. Also
 converts the over-limit term archive from step 6's stub into the same results
 view with its query pre-filled, per D2.
 
-### 9. Single post view
+### 9. Single post view  ✅
 Back link, meta row, standfirst, front-matter hero image with the striped
-fallback, body prose, tag footer with over-limit routing.
+fallback, body prose, tag footer with over-limit routing. All four hero
+branches — bundle resource, site-relative path, absolute URL, no image —
+verified.
 
 ### 10. About view + Markdown prose theming
 Article card, `content/about.md` eyebrow, list-item `—` markers, blockquote

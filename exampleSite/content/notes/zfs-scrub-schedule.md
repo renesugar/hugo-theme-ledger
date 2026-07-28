@@ -5,6 +5,8 @@ summary: "Monthly scrubs, weekly SMART short tests, and what the error counters 
 categories: ["Homelab"]
 tags: ["zfs", "linux", "routine"]
 readingTime: 6
+image: "/img/hero-sample.svg"
+imageAlt: "Layered ridgelines"
 ---
 
 Mostly a reminder to myself, since I get this wrong every time.

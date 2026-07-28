@@ -302,6 +302,81 @@
   color: var(--accent);
 }
 
+/* ── Tags grid ───────────────────────────────────────────────────────────── */
+
+.ledger-taxonomy {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ledger-taxonomy-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.ledger-taxonomy-heading h1 {
+  font: 700 27px/1.2 var(--font-sans);
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.ledger-taxonomy-count {
+  font: 400 12px/1.4 var(--font-mono);
+  color: var(--dim);
+}
+
+.ledger-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(176px, 1fr));
+  gap: 8px;
+}
+
+/* Deliberately flat rectangles — no border-radius. */
+.ledger-grid-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+}
+
+.ledger-grid-cell:hover {
+  border-color: var(--accent);
+  background: var(--sel);
+}
+
+.ledger-grid-name {
+  flex: 1;
+  min-width: 0;
+  font: 500 13px/1.2 var(--font-sans);
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ledger-grid-over {
+  font: 11px/1 var(--font-sans);
+  color: var(--accent);
+  flex: 0 0 auto;
+}
+
+.ledger-grid-count {
+  font: 500 11px/1 var(--font-mono);
+  color: var(--chipText);
+  flex: 0 0 auto;
+}
+
+@media (max-width: 899px) {
+  .ledger-grid {
+    grid-template-columns: repeat(auto-fill, minmax(132px, 1fr));
+  }
+}
+
 /* ── Over-limit term stub ────────────────────────────────────────────────── */
 
 .ledger-overlimit {

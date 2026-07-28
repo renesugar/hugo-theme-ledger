@@ -43,8 +43,9 @@ capitalizeListTitles = false
     home = 6                      # results per page in the content panel
     term = 6                      # results per page on a taxonomy archive
     search = 6                    # results per page on the search page
-    tagsGrid = 18                 # buttons per page on /tags/
-    tagsGridMobile = 12
+    # Buttons per page on /tags/. There is no mobile variant: this pager is
+    # server-rendered with one URL per page, so it cannot vary by viewport.
+    tagsGrid = 18
     sidebarCategories = 7         # categories per sidebar page
     sidebarCategoriesMobile = 6
     sidebarTags = 9               # tags per sidebar page

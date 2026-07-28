@@ -29,11 +29,21 @@ spend most of a build writing them. Resolution:
 
 ### D2 — Over-limit taxonomy terms
 
-A term whose count exceeds `taxonomyPageLimit` must not render a full paginated
-archive (that is the O(n) blowup the design is avoiding). Its term page still
-builds — so the URL is never a 404 — but renders a bounded stub that links to
-`/search/?q=category:Name`. Sidebar rows and tag-grid cells for those terms link
-straight to the search page, per the design.
+A term whose count exceeds `taxonomyPageLimit` must not render a *server*-
+paginated archive — that is the O(n) blowup the design avoids, and at 200k
+notes in one term it would emit ~33k pager directories for that term alone.
+
+Instead its term page renders the **search view with the query pre-filled**
+(`category:Recipes`), so the URL returns real, paginated results rather than a
+dead end telling the visitor to go and search. Paging there is client-side, so
+exactly one page is generated per term no matter how many notes it holds.
+
+Sidebar rows and tag-grid cells for over-limit terms continue to link to
+`/search/?q=…`; both surfaces now show the same thing, so the routing is a
+convenience rather than a difference in behaviour.
+
+Under-limit terms keep the server-rendered archive with real `/page/N/` URLs,
+which stays bounded by `taxonomyPageLimit`.
 
 ### D3 — No unbounded per-page queries
 
@@ -93,15 +103,19 @@ Result card, content-panel pagination (with windowing, real `<a href>`s,
 Primed `category:<first>` search bar, server-rendered result list, pagination
 capped per D1.
 
-### 6. Term archive + over-limit stub
-`term.html` with the eyebrow/h1/meta heading block; D2 stub for over-limit terms.
+### 6. Term archive + over-limit handling  ✅
+`term.html` with the eyebrow/h1/meta heading block. Over-limit terms shipped an
+interim stub; step 8 replaces it with the pre-filled results view now that D2
+calls for real results at that URL.
 
 ### 7. Tags grid page
 `/tags/` flat-rectangle grid, server-paginated, over/under-limit routing.
 
 ### 8. Search page + Pagefind
 `search.html`, query parser, adapter interface, Pagefind adapter, in-page
-results, URL `?q=` and `?page=` sync, `aria-live` count, empty state.
+results, URL `?q=` and `?page=` sync, `aria-live` count, empty state. Also
+converts the over-limit term archive from step 6's stub into the same results
+view with its query pre-filled, per D2.
 
 ### 9. Single post view
 Back link, meta row, standfirst, front-matter hero image with the striped

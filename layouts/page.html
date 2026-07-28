@@ -1,5 +1,49 @@
 {{ define "main" }}
-{{/* Step 9 replaces this with the single-post view; step 10 handles About. */}}
-<h1>{{ .Title }}</h1>
-{{ .Content }}
+{{- /* Step 9 replaces the presentation here with the designed single-post view.
+       What matters at this step is the Pagefind indexing contract.
+
+       Only pages in mainSections carry data-pagefind-body. Pagefind indexes
+       *only* the elements marked with it once any exist, so this one attribute
+       both scopes the index to note bodies and excludes the shared shell —
+       header, sidebar, footer — from every result excerpt. Standalone pages
+       like about.md and search.md are left unmarked and so stay out of the
+       index entirely. */ -}}
+
+{{- $indexable := in (site.Params.mainSections | default (slice "notes")) .Section -}}
+{{- $category := index (.Params.categories | default slice) 0 -}}
+{{- $tags := .Params.tags | default slice -}}
+{{- $reading := .Params.readingTime | default .ReadingTime -}}
+
+<article {{ if $indexable }}data-pagefind-body{{ end }}>
+
+  {{- if $indexable }}
+  {{/* Filters drive the category:/tag: grammar; meta carries what the result
+       card needs to render without a second fetch. Hidden from the excerpt. */}}
+  <div data-pagefind-ignore hidden>
+    <span data-pagefind-meta="title" data-pagefind-weight="10">{{ .Title }}</span>
+    {{- with or .Params.summary .Summary }}
+    <span data-pagefind-meta="summary">{{ . | plainify }}</span>
+    {{- end }}
+    {{- with .Date }}
+    <span data-pagefind-meta="date">{{ .Format "2006-01-02" }}</span>
+    {{- end }}
+    {{- with $reading }}
+    <span data-pagefind-meta="reading">{{ . }}</span>
+    {{- end }}
+    {{- with $category }}
+    <span data-pagefind-filter="category">{{ . }}</span>
+    <span data-pagefind-meta="category">{{ . }}</span>
+    {{- end }}
+    {{- range $tags }}
+    <span data-pagefind-filter="tag">{{ . }}</span>
+    {{- end }}
+    {{- with $tags }}
+    <span data-pagefind-meta="tags">{{ delimit . "," }}</span>
+    {{- end }}
+  </div>
+  {{- end }}
+
+  <h1>{{ .Title }}</h1>
+  {{ .Content }}
+</article>
 {{ end }}

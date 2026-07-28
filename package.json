@@ -9,7 +9,7 @@
     "build": "hugo --source exampleSite --themesDir ../..",
     "index": "pagefind --site exampleSite/public",
     "build:indexed": "npm run build && npm run index",
-    "serve:dist": "hugo server --source exampleSite --themesDir ../.. --renderToDisk"
+    "preview": "npm run build:indexed && npx --yes serve exampleSite/public"
   },
   "devDependencies": {
     "pagefind": "^1.5.0"

@@ -29,19 +29,9 @@
   <h1>{{ $heading }}</h1>
 </div>
 
-<div class="ledger-overlimit" data-card>
-  <div class="ledger-empty-icon" aria-hidden="true">&#x2315;</div>
-  <p class="ledger-empty-title">
-    {{ lang.FormatNumber 0 $count }} notes in {{ $heading }}
-  </p>
-  <p class="ledger-empty-help">
-    That is more than the {{ lang.FormatNumber 0 $limit }}-note archive limit, so
-    this term is browsed through search rather than as a list.
-  </p>
-  <a class="ledger-overlimit-action" href="{{ $searchURL }}">
-    Search <code>{{ $query }}</code>
-  </a>
-</div>
+{{/* Decision D2: real paginated results at the archive URL, found through the
+     search backend so paging is client-side and this stays one built page. */}}
+{{ partial "search-view.html" (dict "query" $query "pinned" true) }}
 
 {{- else }}
 

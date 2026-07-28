@@ -1,0 +1,59 @@
+{{- /* The in-page search results view. Context:
+         query    — initial query, may be empty
+         pinned   — true when the query comes from the page itself (an
+                    over-limit term archive) rather than from ?q=, so the
+                    controller leaves it out of the URL
+
+       Results render into the content panel, replacing the list — never as an
+       overlay. The empty state is server-rendered here and toggled, so the
+       designed markup and its suggestion chips are not duplicated in JS. */ -}}
+
+{{- $query := .query | default "" -}}
+{{- $p := site.Params -}}
+
+{{- $config := dict
+      "backend"       ($p.search.backend | default "pagefind")
+      "bundlePath"    ($p.search.bundlePath | default "/pagefind/pagefind.js")
+      "endpoint"      ($p.search.endpoint | default "/api/search")
+      "perPage"       (int ($p.pagination.search | default 6))
+      "allNotesLabel" ($p.sidebar.allNotesLabel | default "All notes")
+      "searchURL"     ("/search/" | relURL)
+-}}
+
+<div class="ledger-search" data-ledger-search
+     data-initial-query="{{ $query }}"
+     {{ if .pinned }}data-pinned="true"{{ end }}>
+
+  <script type="application/json" data-ledger-search-config>{{ $config | jsonify | safeJS }}</script>
+
+  {{ partial "search-bar.html" (dict "query" $query "count" nil) }}
+
+  <div class="ledger-meta" data-ledger-search-meta hidden>
+    <span class="ledger-meta-count" data-ledger-result-count role="status" aria-live="polite"></span>
+    <span class="ledger-meta-page" data-ledger-result-page></span>
+  </div>
+
+  <div class="ledger-results" data-ledger-search-results></div>
+
+  <div data-ledger-search-pagination></div>
+
+  <div data-ledger-search-empty hidden>
+    {{ partial "empty-results.html" (dict "query" "") }}
+  </div>
+
+  <noscript>
+    <p class="ledger-page-ceiling">
+      Search needs JavaScript. Browse by
+      <a href="{{ "/tags/" | relURL }}">tag</a> instead.
+    </p>
+  </noscript>
+</div>
+
+{{- /* Loaded here rather than in baseof: only the two views that embed this
+       partial need the search bundle. */ -}}
+{{- $search := resources.Get "js/search/main.js" | js.Build (dict
+      "targetPath" "js/ledger-search.js"
+      "format" "esm"
+      "minify" hugo.IsProduction) -}}
+{{- if hugo.IsProduction }}{{ $search = $search | fingerprint }}{{ end }}
+<script type="module" src="{{ $search.RelPermalink }}"></script>

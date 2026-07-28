@@ -1,0 +1,4 @@
+{{ define "main" }}
+{{/* The query comes from ?q= on load; the controller owns it from there. */}}
+{{ partial "search-view.html" (dict "query" "") }}
+{{ end }}

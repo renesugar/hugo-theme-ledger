@@ -225,7 +225,12 @@
       var idx = item.url.indexOf('?q=');
       return idx !== -1 && decodeURIComponent(item.url.slice(idx + 3)) === q;
     }
-    return item.url.replace(/\/$/, '') === location.pathname.replace(/\/$/, '');
+    // Match the archive path as well as the row's own href: an over-limit row
+    // links to search, but its archive URL is still a real page a visitor can
+    // land on, and the row should light up there too.
+    var here = location.pathname.replace(/\/$/, '');
+    return item.url.replace(/\/$/, '') === here ||
+           (!!item.path && item.path.replace(/\/$/, '') === here);
   }
 
   function buildRow(item, glyph) {
@@ -233,6 +238,7 @@
     a.className = 'ledger-term';
     a.href = item.url;
     a.setAttribute('data-ledger-drawer-close', '');
+    if (item.path) a.setAttribute('data-path', item.path);
     if (item.over) a.setAttribute('data-over', 'true');
     if (isActiveTerm(item)) a.setAttribute('data-active', 'true');
 
@@ -388,12 +394,10 @@
     Array.prototype.forEach.call(
       document.querySelectorAll('.ledger-sidebar .ledger-term'),
       function (a) {
-        var href = a.getAttribute('href') || '';
-        var q = activeQuery();
-        var on = q !== null
-          ? (href.indexOf('?q=') !== -1 &&
-             decodeURIComponent(href.slice(href.indexOf('?q=') + 3)) === q)
-          : href.replace(/\/$/, '') === location.pathname.replace(/\/$/, '');
+        var on = isActiveTerm({
+          url: a.getAttribute('href') || '',
+          path: a.getAttribute('data-path') || ''
+        });
         if (on) a.setAttribute('data-active', 'true');
       }
     );

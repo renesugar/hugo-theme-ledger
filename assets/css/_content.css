@@ -302,6 +302,45 @@
   color: var(--accent);
 }
 
+/* ── Over-limit term stub ────────────────────────────────────────────────── */
+
+.ledger-overlimit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+  padding: 44px 28px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow);
+  text-align: center;
+}
+
+.ledger-overlimit-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 4px;
+  padding: 10px 15px;
+  border-radius: var(--r-button);
+  background: var(--accent);
+  color: #fff;
+  font: 500 12.5px/1 var(--font-sans);
+  box-shadow: var(--shadow);
+}
+
+.ledger-overlimit-action:hover {
+  filter: brightness(1.08);
+}
+
+.ledger-overlimit-action code {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: #fff;
+  opacity: .85;
+}
+
 /* ── Archive heading block ───────────────────────────────────────────────── */
 
 .ledger-heading {

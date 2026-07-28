@@ -38,7 +38,7 @@
     {{- with site.GetPage (printf "/%s" .) -}}{{- $notes = add $notes (len .RegularPages) -}}{{- end -}}
   {{- end -}}
   {{- $allURL := printf "%s?q=%s" ("/search/" | relURL) (printf "category:%s" $allLabel | urlquery) -}}
-  {{- $catItems = (slice (dict "name" $allLabel "url" $allURL "count" $notes "over" (gt $notes $limit))) | append $catItems -}}
+  {{- $catItems = (slice (dict "name" $allLabel "url" $allURL "path" "" "count" $notes "over" (gt $notes $limit))) | append $catItems -}}
   {{- $catTotal = add $catTotal 1 -}}
 {{- end -}}
 
@@ -82,6 +82,7 @@
         {{- $glyph := .glyph }}
         {{- range first .per .items }}
         <a class="ledger-term" href="{{ .url }}" data-ledger-drawer-close
+           {{ with .path }}data-path="{{ . }}"{{ end }}
            {{ if .over }}data-over="true"{{ end }}>
           <span class="ledger-term-glyph" aria-hidden="true">{{ $glyph | safeHTML }}</span>
           <span class="ledger-term-name">{{ .name }}</span>

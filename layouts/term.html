@@ -1,10 +1,75 @@
 {{ define "main" }}
-{{/* Step 6 replaces this with the archive heading block, result list and the
-     over-limit stub (decision D2 in PLAN.md). */}}
-<h1>{{ .Title }}</h1>
-<ul>
-  {{ range (.Paginate .Pages (int (or site.Params.pagination.term 6))).Pages }}
-    <li><a href="{{ .RelPermalink }}">{{ .LinkTitle }}</a></li>
-  {{ end }}
-</ul>
+{{- /* Taxonomy archive. Two shapes, decided by the term's size:
+
+       Under limit — the designed archive view: heading block, result list,
+       server-rendered pagination. Bounded by taxonomyPageLimit, so this can
+       never paginate more than ceil(limit / perPage) pages.
+
+       Over limit — a stub (decision D2 in PLAN.md). The sidebar and tags grid
+       already route these terms to search, but the archive URL must still
+       resolve rather than 404, so the page builds and hands off to the same
+       search query. Critically it does NOT call .Paginate: paginating a term
+       holding 200k notes is exactly the unbounded work the design avoids. */ -}}
+
+{{- $limit := int (site.Params.taxonomyPageLimit | default 25) -}}
+{{- $tagPlural := site.Params.taxonomy.tagPlural | default "tags" -}}
+{{- $isTag := eq .Data.Plural $tagPlural -}}
+{{- $prefix := .Data.Singular -}}
+{{- $term := or .Data.Term .LinkTitle -}}
+{{- $count := len .Pages -}}
+{{- $query := printf "%s:%s" $prefix $term -}}
+{{- $searchURL := printf "%s?q=%s" ("/search/" | relURL) ($query | urlquery) -}}
+{{- $eyebrow := printf "%s archive" $prefix -}}
+{{- $heading := cond $isTag (printf "#%s" $term) $term -}}
+
+{{- if gt $count $limit }}
+
+<div class="ledger-heading">
+  <span class="ledger-eyebrow">{{ $eyebrow }}</span>
+  <h1>{{ $heading }}</h1>
+</div>
+
+<div class="ledger-overlimit" data-card>
+  <div class="ledger-empty-icon" aria-hidden="true">&#x2315;</div>
+  <p class="ledger-empty-title">
+    {{ lang.FormatNumber 0 $count }} notes in {{ $heading }}
+  </p>
+  <p class="ledger-empty-help">
+    That is more than the {{ lang.FormatNumber 0 $limit }}-note archive limit, so
+    this term is browsed through search rather than as a list.
+  </p>
+  <a class="ledger-overlimit-action" href="{{ $searchURL }}">
+    Search <code>{{ $query }}</code>
+  </a>
+</div>
+
+{{- else }}
+
+{{- $per := int (site.Params.pagination.term | default 6) -}}
+{{- $paginator := .Paginate .Pages $per -}}
+
+<div class="ledger-heading">
+  <span class="ledger-eyebrow">{{ $eyebrow }}</span>
+  <h1>{{ $heading }}</h1>
+  <span class="ledger-heading-meta">
+    {{- lang.FormatNumber 0 $paginator.TotalNumberOfElements }}
+    {{- cond (eq $paginator.TotalNumberOfElements 1) " result for " " results for " }}{{ $query }}
+    {{- if gt $paginator.TotalPages 1 }} · Page {{ $paginator.PageNumber }} of {{ $paginator.TotalPages }}{{ end -}}
+  </span>
+</div>
+
+{{- with .Content }}{{ . }}{{ end }}
+
+{{ if $paginator.Pages }}
+<div class="ledger-results">
+  {{- range $paginator.Pages }}
+  {{ partial "result-card.html" . }}
+  {{- end }}
+</div>
+{{ partial "pagination.html" (dict "paginator" $paginator) }}
+{{ else }}
+{{ partial "empty-results.html" (dict "query" $query) }}
+{{ end }}
+
+{{- end }}
 {{ end }}

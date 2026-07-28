@@ -29,7 +29,10 @@
     {{- if $over -}}
       {{- $url = printf "%s?q=%s" $searchURL (printf "%s:%s" $prefix $name | urlquery) -}}
     {{- end -}}
-    {{- $terms = $terms | append (dict "name" $name "url" $url "count" $count "over" $over) -}}
+    {{- /* `path` is always the archive URL, even when `url` routes to search,
+           so the sidebar can still mark the row active for a visitor who lands
+           on an over-limit term's archive directly. */ -}}
+    {{- $terms = $terms | append (dict "name" $name "url" $url "path" .RelPermalink "count" $count "over" $over) -}}
   {{- end -}}
 {{- end -}}
 

@@ -7,7 +7,7 @@ tags: ["backup", "proxmox", "linux"]
 readingTime: 9
 ---
 
-Three tiers, two media, one offsite. The rotation script and the retention maths behind it.
+Mostly a reminder to myself, since I get this wrong every time.
 
 ## Why it matters
 

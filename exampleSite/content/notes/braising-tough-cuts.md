@@ -7,7 +7,7 @@ tags: ["technique", "slow"]
 readingTime: 6
 ---
 
-Collagen converts to gelatin somewhere around 70°C, given enough hours. Everything else is seasoning.
+The short version, kept where I will actually find it again.
 
 ## Why it matters
 

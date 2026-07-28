@@ -7,7 +7,7 @@ tags: ["hugo", "markdown", "performance"]
 readingTime: 11
 ---
 
-Why ranging over site.RegularPages inside a partial turns a build into an O(n²) problem.
+Written down after the third time I had to work it out again from scratch.
 
 ## Why it matters
 

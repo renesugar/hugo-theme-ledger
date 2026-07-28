@@ -7,7 +7,7 @@ tags: ["sourdough", "baking"]
 readingTime: 5
 ---
 
-High hydration, a cold retard, and a shallow pan. The dimpling step is not optional.
+Written down after the third time I had to work it out again from scratch.
 
 ## Why it matters
 

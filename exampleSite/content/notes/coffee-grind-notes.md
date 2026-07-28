@@ -7,7 +7,7 @@ tags: ["coffee", "routine"]
 readingTime: 3
 ---
 
-Grind size is the only variable worth changing once the dose and water are fixed.
+A running note — the earlier attempts are worth keeping for the mistakes.
 
 ## Why it matters
 

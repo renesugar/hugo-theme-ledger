@@ -7,7 +7,7 @@ tags: ["pasta", "technique"]
 readingTime: 4
 ---
 
-Less water than you think, saltier than you think. The starch concentration is the whole point.
+The short version, kept where I will actually find it again.
 
 ## Why it matters
 

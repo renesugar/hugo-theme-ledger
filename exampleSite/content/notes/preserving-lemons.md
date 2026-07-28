@@ -7,7 +7,7 @@ tags: ["technique", "slow"]
 readingTime: 4
 ---
 
-Salt, lemons, time, and a jar you will forget about for a month.
+A running note — the earlier attempts are worth keeping for the mistakes.
 
 ## Why it matters
 

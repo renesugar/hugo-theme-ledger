@@ -7,7 +7,7 @@ tags: ["markdown", "notes"]
 readingTime: 4
 ---
 
-Footnotes are for asides you would otherwise delete. Everything else belongs in the sentence.
+Mostly a reminder to myself, since I get this wrong every time.
 
 ## Why it matters
 

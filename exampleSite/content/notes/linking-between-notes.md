@@ -7,7 +7,7 @@ tags: ["notes", "markdown"]
 readingTime: 6
 ---
 
-A link you cannot explain in half a sentence is a link you do not need.
+The short version, kept where I will actually find it again.
 
 ## Why it matters
 

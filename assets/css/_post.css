@@ -1,0 +1,112 @@
+/* Single post view. */
+
+.ledger-post {
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ledger-post-back {
+  font: 500 12px/1 var(--font-mono);
+  color: var(--dim);
+  width: fit-content;
+}
+
+.ledger-post-back:hover {
+  color: var(--accent);
+}
+
+.ledger-post-head {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+.ledger-post-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ledger-post-category {
+  font: 500 10.5px/1 var(--font-mono);
+  color: var(--accent);
+  background: var(--sel);
+  padding: 5px 8px;
+  border-radius: var(--r-chip);
+}
+
+.ledger-post-date {
+  font: 400 11px/1 var(--font-mono);
+  color: var(--faint);
+}
+
+.ledger-post h1 {
+  font: 700 32px/1.16 var(--font-sans);
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+
+.ledger-post-standfirst {
+  font: 400 16.5px/1.6 var(--font-sans);
+  color: var(--dim);
+}
+
+/* ── Hero ────────────────────────────────────────────────────────────────── */
+
+/* The striped block is the documented fallback, not a dev placeholder: it is
+   what a note without a front-matter image is meant to show. */
+.ledger-hero {
+  height: 200px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-hero);
+  background: repeating-linear-gradient(135deg, var(--panel2) 0 9px, var(--panel) 9px 18px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.ledger-hero-label {
+  font: 400 11px/1 var(--font-mono);
+  color: var(--faint);
+  letter-spacing: 0.04em;
+}
+
+.ledger-hero img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ── Tag footer ──────────────────────────────────────────────────────────── */
+
+.ledger-post-tags {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border);
+  padding-top: 6px;
+  margin-top: 6px;
+}
+
+.ledger-post-tagged {
+  font: 500 10.5px/1 var(--font-mono);
+  color: var(--faint);
+  margin-right: 3px;
+}
+
+.ledger-post-tag {
+  font: 400 11.5px/1 var(--font-mono);
+  color: var(--chipText);
+  background: var(--chip);
+  padding: 6px 9px;
+  border-radius: 6px;
+}
+
+.ledger-post-tag:hover {
+  color: var(--accent);
+}

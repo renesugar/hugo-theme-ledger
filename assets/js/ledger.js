@@ -403,6 +403,31 @@
     );
   }
 
+  /* ── Post back link ────────────────────────────────────────────────────── */
+
+  function initBackLink() {
+    var link = document.querySelector('[data-ledger-back]');
+    if (!link) return;
+
+    // "Returns to the referring search/archive page" — a history step preserves
+    // the visitor's scroll position, query and page number, which re-navigating
+    // to the href cannot. Only for same-origin referrers; otherwise the href
+    // stands, so the link is never dead.
+    var referrer = document.referrer;
+    if (!referrer) return;
+    try {
+      if (new URL(referrer).origin !== location.origin) return;
+    } catch (e) {
+      return;
+    }
+
+    link.addEventListener('click', function (event) {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.button !== 0) return;
+      event.preventDefault();
+      history.back();
+    });
+  }
+
   /* ── Search bar ────────────────────────────────────────────────────────── */
 
   function initSearchBar() {
@@ -490,6 +515,7 @@
     markActiveServerRows();
     initTerms();
     initSearchBar();
+    initBackLink();
     initSplit();
   }
 

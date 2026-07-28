@@ -7,7 +7,7 @@ tags: ["docker", "linux"]
 readingTime: 7
 ---
 
-One stack per directory, named volumes only, and every port mapped explicitly.
+Mostly a reminder to myself, since I get this wrong every time.
 
 ## Why it matters
 

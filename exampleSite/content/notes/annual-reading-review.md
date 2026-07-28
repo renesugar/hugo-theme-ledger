@@ -7,7 +7,7 @@ tags: ["books", "routine"]
 readingTime: 8
 ---
 
-What I finished, what I abandoned, and the abandoned ones I still think about.
+Written down after the third time I had to work it out again from scratch.
 
 ## Why it matters
 

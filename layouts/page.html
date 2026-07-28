@@ -1,6 +1,5 @@
 {{ define "main" }}
-{{- /* Step 9 replaces the presentation here with the designed single-post view.
-       What matters at this step is the Pagefind indexing contract.
+{{- /* Single post.
 
        Only pages in mainSections carry data-pagefind-body. Pagefind indexes
        *only* the elements marked with it once any exist, so this one attribute
@@ -10,40 +9,96 @@
        index entirely. */ -}}
 
 {{- $indexable := in (site.Params.mainSections | default (slice "notes")) .Section -}}
+{{- $limit := int (site.Params.taxonomyPageLimit | default 25) -}}
+{{- $catPlural := site.Params.taxonomy.categoryPlural | default "categories" -}}
+{{- $tagPlural := site.Params.taxonomy.tagPlural | default "tags" -}}
+{{- $searchURL := "/search/" | relURL -}}
+
 {{- $category := index (.Params.categories | default slice) 0 -}}
 {{- $tags := .Params.tags | default slice -}}
 {{- $reading := .Params.readingTime | default .ReadingTime -}}
+{{- $summary := or .Params.summary .Summary -}}
 
-<article {{ if $indexable }}data-pagefind-body{{ end }}>
+<article class="ledger-post" {{ if $indexable }}data-pagefind-body{{ end }}>
 
   {{- if $indexable }}
   {{/* Filters drive the category:/tag: grammar; meta carries what the result
        card needs to render without a second fetch. Hidden from the excerpt. */}}
   <div data-pagefind-ignore hidden>
     <span data-pagefind-meta="title" data-pagefind-weight="10">{{ .Title }}</span>
-    {{- with or .Params.summary .Summary }}
-    <span data-pagefind-meta="summary">{{ . | plainify }}</span>
-    {{- end }}
-    {{- with .Date }}
-    <span data-pagefind-meta="date">{{ .Format "2006-01-02" }}</span>
-    {{- end }}
-    {{- with $reading }}
-    <span data-pagefind-meta="reading">{{ . }}</span>
-    {{- end }}
+    {{- with $summary }}<span data-pagefind-meta="summary">{{ . | plainify }}</span>{{ end }}
+    {{- with .Date }}<span data-pagefind-meta="date">{{ .Format "2006-01-02" }}</span>{{ end }}
+    {{- with $reading }}<span data-pagefind-meta="reading">{{ . }}</span>{{ end }}
     {{- with $category }}
     <span data-pagefind-filter="category">{{ . }}</span>
     <span data-pagefind-meta="category">{{ . }}</span>
     {{- end }}
-    {{- range $tags }}
-    <span data-pagefind-filter="tag">{{ . }}</span>
-    {{- end }}
-    {{- with $tags }}
-    <span data-pagefind-meta="tags">{{ delimit . "," }}</span>
-    {{- end }}
+    {{- range $tags }}<span data-pagefind-filter="tag">{{ . }}</span>{{ end }}
+    {{- with $tags }}<span data-pagefind-meta="tags">{{ delimit . "," }}</span>{{ end }}
   </div>
   {{- end }}
 
-  <h1>{{ .Title }}</h1>
-  {{ .Content }}
+  {{/* Falls back to home when there is no same-origin referrer to return to;
+       the script upgrades it to a real history step when there is one. */}}
+  <a class="ledger-post-back" href="{{ site.Home.RelPermalink }}" data-ledger-back>&larr; back to results</a>
+
+  <header class="ledger-post-head">
+    <div class="ledger-post-meta">
+      {{- with $category }}
+      {{- $url := "" -}}
+      {{- with site.GetPage (printf "/%s/%s" $catPlural (urlize .)) -}}
+        {{- $url = cond (gt (len .Pages) $limit) (printf "%s?q=%s" $searchURL (printf "category:%s" $category | urlquery)) .RelPermalink -}}
+      {{- end }}
+      <a class="ledger-post-category" href="{{ or $url $searchURL }}">{{ . }}</a>
+      {{- end }}
+      <span class="ledger-post-date">
+        {{- with $.Date }}{{ .Format "2006-01-02" }}{{ end -}}
+        {{- with $reading }} · {{ . }} min read{{ end -}}
+      </span>
+    </div>
+
+    <h1>{{ .Title }}</h1>
+
+    {{- with $summary }}
+    <p class="ledger-post-standfirst">{{ . | plainify }}</p>
+    {{- end }}
+  </header>
+
+  {{- /* Front-matter `image`: a page-bundle resource name, a site-relative
+         path, or an absolute URL. Without one, the striped block stands in. */ -}}
+  {{- $hero := "" -}}
+  {{- with .Params.image -}}
+    {{- with $.Resources.GetMatch . -}}
+      {{- $hero = .RelPermalink -}}
+    {{- else -}}
+      {{- $hero = cond (hasPrefix . "http") . (relURL .) -}}
+    {{- end -}}
+  {{- end }}
+  <div class="ledger-hero" data-card>
+    {{- if $hero }}
+    <img src="{{ $hero }}" alt="{{ .Params.imageAlt | default "" }}" loading="lazy" width="1600" height="640">
+    {{- else }}
+    <span class="ledger-hero-label">hero image · 1600×640</span>
+    {{- end }}
+  </div>
+
+  <div class="ledger-prose">
+    {{ .Content }}
+  </div>
+
+  {{- with $tags }}
+  <footer class="ledger-post-tags">
+    <span class="ledger-post-tagged">TAGGED</span>
+    {{- range . }}
+    {{- $url := "" -}}
+    {{- with site.GetPage (printf "/%s/%s" $tagPlural (urlize .)) -}}
+      {{- $url = cond (gt (len .Pages) $limit) "" .RelPermalink -}}
+    {{- end -}}
+    {{- if not $url }}{{ $url = printf "%s?q=%s" $searchURL (printf "tag:%s" . | urlquery) }}{{ end }}
+    <a class="ledger-post-tag" href="{{ $url }}">#{{ . }}</a>
+    {{- end }}
+  </footer>
+  {{- end }}
+
 </article>
 {{ end }}

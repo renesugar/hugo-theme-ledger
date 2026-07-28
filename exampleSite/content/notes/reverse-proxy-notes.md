@@ -7,7 +7,7 @@ tags: ["docker", "networking"]
 readingTime: 8
 ---
 
-Terminating TLS once, at the edge, and letting everything behind it speak plain HTTP.
+Written down after the third time I had to work it out again from scratch.
 
 ## Why it matters
 

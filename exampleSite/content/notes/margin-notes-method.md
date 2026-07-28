@@ -7,7 +7,7 @@ tags: ["books", "notes"]
 readingTime: 5
 ---
 
-Four symbols, used consistently, beat any highlighting system I have tried.
+A running note — the earlier attempts are worth keeping for the mistakes.
 
 ## Why it matters
 

@@ -7,7 +7,7 @@ tags: ["zfs", "linux", "routine"]
 readingTime: 6
 ---
 
-Monthly scrubs, weekly SMART short tests, and what the error counters actually mean.
+Mostly a reminder to myself, since I get this wrong every time.
 
 ## Why it matters
 

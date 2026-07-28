@@ -5,10 +5,9 @@ summary: "A starter is a schedule, not a recipe. What actually matters is the fe
 categories: ["Recipes"]
 tags: ["sourdough", "baking", "routine"]
 readingTime: 7
-image: "hero.jpg"
 ---
 
-A starter is a schedule, not a recipe. What actually matters is the feed ratio and the ambient temperature.
+The short version, kept where I will actually find it again.
 
 ## Why it matters
 

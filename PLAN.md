@@ -152,10 +152,24 @@ verified.
 Article card, `content/about.md` eyebrow, list-item `—` markers, blockquote
 treatment; applies to all rendered Markdown.
 
-### 11. Accessibility pass
-Focus rings on every interactive element, `prefers-reduced-motion`, keyboard
-paths for drawer/dropdown/split bar, screen-reader labels, contrast check of the
-`contrast` theme.
+### 11. Accessibility pass  ✅
+Focus rings, `prefers-reduced-motion`, keyboard paths for drawer/dropdown/split
+bar, screen-reader labels, document outline, and a measured contrast audit of
+all three themes.
+
+**Outstanding — a design decision, not a code change.** Two token pairs measure
+below WCAG AA and were left as specified, since the handoff calls the colours
+final:
+
+| Pair | Light | Dark | Contrast | Used by |
+|---|---|---|---|---|
+| `--faint` on `--panel` | 2.67 | 3.58 | 8.80 | card dates, panel eyebrows, mini-pager range, footer meta |
+| `--accent` on `--sel` | 4.27 | 5.72 | 6.95 | category chip, active nav, current page number |
+
+`--faint` is the significant one: it fails AA (4.5:1) in light and dark for the
+small mono metadata it carries. Roughly `#767b82` (light) and `#8b9199` (dark)
+would clear 4.5:1 while staying recognisably faint. The `contrast` theme already
+passes everything, which is arguably the point of shipping it.
 
 ### 12. Bluge adapter
 `bluge.js` against the documented JSON contract, plus a reference Go server

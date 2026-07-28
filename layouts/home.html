@@ -48,6 +48,8 @@
 
 {{- $paginator := .Paginate $pages $per -}}
 
+<h1 class="ledger-sr-only">{{ site.Title }}</h1>
+
 {{ partial "search-bar.html" (dict
      "query" $query
      "count" $paginator.TotalNumberOfElements

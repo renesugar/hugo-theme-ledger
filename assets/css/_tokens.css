@@ -14,6 +14,7 @@
   --accent: oklch(0.55 0.115 255);
   --chip: #f1f1ed;
   --chipText: #5f646b;
+  --onAccent: #ffffff;
   --shadow: 0 1px 2px rgba(20, 20, 25, .05), 0 8px 24px rgba(20, 20, 25, .05);
 }
 
@@ -30,6 +31,11 @@
   --accent: oklch(0.76 0.1 255);
   --chip: #282c31;
   --chipText: #aeb3ba;
+  /* The dark theme's accent is a light blue. The handoff specifies #fff on
+     accent, but white on this accent measures 2.15:1 — below even the 3:1
+     non-text floor — so the accent's foreground flips dark here. Light and
+     contrast keep #fff as specified. */
+  --onAccent: #141618;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 10px 30px rgba(0, 0, 0, .35);
 }
 
@@ -46,6 +52,7 @@
   --accent: oklch(0.42 0.2 258);
   --chip: #ffffff;
   --chipText: #000000;
+  --onAccent: #ffffff;
   --shadow: none;
 }
 

@@ -45,8 +45,9 @@
       <span class="ledger-grid-name">{{ if $isTag }}#{{ end }}{{ $name }}</span>
       {{- if $over }}
       <span class="ledger-grid-over" title="Over limit — opens the search page" aria-hidden="true">&#x2315;</span>
+      <span class="ledger-sr-only">(opens search)</span>
       {{- end }}
-      <span class="ledger-grid-count">{{ lang.FormatNumber 0 $count }}</span>
+      <span class="ledger-grid-count">{{ lang.FormatNumber 0 $count }}<span class="ledger-sr-only"> notes</span></span>
     </a>
     {{- end }}
   </div>

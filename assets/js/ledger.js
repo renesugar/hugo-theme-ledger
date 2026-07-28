@@ -134,37 +134,80 @@
 
   /* ── Mobile drawer ─────────────────────────────────────────────────────── */
 
+  /* Visible, focusable descendants, in DOM order. */
+  function focusables(container) {
+    return Array.prototype.filter.call(
+      container.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex="-1"])'
+      ),
+      function (el) { return el.offsetWidth > 0 || el.offsetHeight > 0; }
+    );
+  }
+
   function initDrawer() {
     var toggle = document.querySelector('[data-ledger-drawer-toggle]');
     var shell = document.querySelector('.ledger-shell');
     var backdrop = document.querySelector('.ledger-backdrop');
+    var drawer = document.querySelector('[data-ledger-sidebar]');
     if (!toggle || !shell) return;
 
-    function setOpen(open) {
+    // moveFocus is false when the close is incidental — a viewport change, or a
+    // link click that is about to navigate anyway.
+    function setOpen(open, moveFocus) {
       shell.toggleAttribute('data-drawer-open', open);
       toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
       if (backdrop) backdrop.hidden = !open;
+      if (!moveFocus) return;
+
+      // The drawer covers the page, so focus has to move into it and stay
+      // there; otherwise tabbing walks the hidden content behind the backdrop.
+      if (open && drawer) {
+        var first = focusables(drawer)[0];
+        if (first) first.focus();
+      } else if (!open) {
+        toggle.focus();
+      }
     }
 
     toggle.addEventListener('click', function () {
-      setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+      setOpen(toggle.getAttribute('aria-expanded') !== 'true', true);
     });
 
     document.addEventListener('keydown', function (event) {
-      if (event.key === 'Escape' && shell.hasAttribute('data-drawer-open')) {
-        setOpen(false);
-        toggle.focus();
+      if (!shell.hasAttribute('data-drawer-open')) return;
+
+      if (event.key === 'Escape') {
+        setOpen(false, true);
+        return;
+      }
+
+      if (event.key !== 'Tab' || !drawer) return;
+      var items = focusables(drawer);
+      if (!items.length) return;
+      var first = items[0];
+      var last = items[items.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      } else if (!drawer.contains(document.activeElement)) {
+        event.preventDefault();
+        first.focus();
       }
     });
 
     // The backdrop and any term or nav link inside the drawer close it.
     document.addEventListener('click', function (event) {
       if (!shell.hasAttribute('data-drawer-open')) return;
-      if (event.target.closest('[data-ledger-drawer-close]')) setOpen(false);
+      var hit = event.target.closest('[data-ledger-drawer-close]');
+      if (hit) setOpen(false, hit === backdrop);
     });
 
     window.matchMedia(MOBILE).addEventListener('change', function (event) {
-      if (!event.matches) setOpen(false);
+      if (!event.matches) setOpen(false, false);
     });
   }
 
@@ -261,11 +304,21 @@
       over.setAttribute('aria-hidden', 'true');
       over.textContent = '⌕';
       a.appendChild(over);
+
+      var overNote = document.createElement('span');
+      overNote.className = 'ledger-sr-only';
+      overNote.textContent = '(opens search)';
+      a.appendChild(overNote);
     }
 
     var count = document.createElement('span');
     count.className = 'ledger-term-count';
     count.textContent = item.count.toLocaleString();
+    // Without a unit this reads as a bare number after the term name.
+    var unit = document.createElement('span');
+    unit.className = 'ledger-sr-only';
+    unit.textContent = ' notes';
+    count.appendChild(unit);
     a.appendChild(count);
 
     return a;

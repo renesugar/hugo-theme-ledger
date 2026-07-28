@@ -75,7 +75,7 @@
   width: 48px;
   border-radius: var(--r-input);
   background: var(--accent);
-  color: #fff;
+  color: var(--onAccent);
   font: 17px/1 var(--font-sans);
   box-shadow: var(--shadow);
 }

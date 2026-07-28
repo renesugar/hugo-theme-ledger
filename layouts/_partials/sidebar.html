@@ -47,6 +47,7 @@
       | jsonify | resources.FromString "ledger/terms.json" | fingerprint -}}
 
 <aside class="ledger-sidebar" id="ledger-sidebar" data-scroll
+       aria-label="Categories and tags"
        data-ledger-sidebar data-terms-url="{{ $termsJSON.RelPermalink }}">
 
   {{/* Below 900px the header nav is hidden, so the drawer carries it. */}}
@@ -88,8 +89,10 @@
           <span class="ledger-term-name">{{ .name }}</span>
           {{- if .over }}
           <span class="ledger-term-over" title="Over limit — opens the search page" aria-hidden="true">&#x2315;</span>
+          <span class="ledger-sr-only">(opens search)</span>
           {{- end }}
-          <span class="ledger-term-count">{{ lang.FormatNumber 0 .count }}</span>
+          {{/* Without a unit, this reads as a bare number after the term name. */}}
+          <span class="ledger-term-count">{{ lang.FormatNumber 0 .count }}<span class="ledger-sr-only"> notes</span></span>
         </a>
         {{- end }}
       </div>

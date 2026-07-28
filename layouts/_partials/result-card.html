@@ -10,7 +10,9 @@
 {{- $reading := .Params.readingTime | default .ReadingTime -}}
 
 <a class="ledger-card" data-card href="{{ .RelPermalink }}">
-  <h3 class="ledger-card-title">{{ .LinkTitle }}</h3>
+  {{/* h2, not h3: the level sits directly under the page h1. The design
+       specifies the card title's appearance, which .ledger-card-title carries. */}}
+  <h2 class="ledger-card-title">{{ .LinkTitle }}</h2>
 
   {{- with or .Params.summary .Summary }}
   <p class="ledger-card-summary">{{ . | plainify | truncate 220 }}</p>

@@ -128,7 +128,7 @@ function init(root) {
     a.href = r.url;
     a.setAttribute('data-card', '');
 
-    a.appendChild(text(el('h3', 'ledger-card-title'), r.title));
+    a.appendChild(text(el('h2', 'ledger-card-title'), r.title));
     if (r.summary) a.appendChild(text(el('p', 'ledger-card-summary'), r.summary));
 
     var meta = el('div', 'ledger-card-meta');

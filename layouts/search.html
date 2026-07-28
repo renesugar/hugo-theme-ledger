@@ -1,4 +1,5 @@
 {{ define "main" }}
 {{/* The query comes from ?q= on load; the controller owns it from there. */}}
+<h1 class="ledger-sr-only">{{ .Title }}</h1>
 {{ partial "search-view.html" (dict "query" "") }}
 {{ end }}

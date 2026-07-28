@@ -1,0 +1,21 @@
+{{ define "main" }}
+{{- /* Applied to any page with `layout: about` in its front matter.
+
+       No data-pagefind-body: About is not a note, so it stays out of the search
+       index the same way search.md does. */ -}}
+
+<article class="ledger-about" data-card>
+  {{- /* The eyebrow names the file this page renders from, which is the point
+         of it — it tells a reader of the demo where to edit. Falls back to the
+         section path for generated pages that have no backing file. */ -}}
+  <span class="ledger-about-eyebrow">
+    {{- with .File }}content/{{ .Path }}{{ else }}{{ .RelPermalink }}{{ end -}}
+  </span>
+
+  <h1>{{ .Title }}</h1>
+
+  <div class="ledger-prose">
+    {{ .Content }}
+  </div>
+</article>
+{{ end }}

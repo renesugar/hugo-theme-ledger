@@ -1,0 +1,37 @@
+{{- /* Identical on every page — baseof calls this through partialCached with no
+       variant key, so it renders once per build regardless of corpus size.
+       The three counts are O(1) slice/map lengths off structures Hugo has
+       already built; nothing here walks site.RegularPages. */ -}}
+{{- /* Count notes, not every regular page — standalone pages like about.md and
+       search.md are not notes. Each section's RegularPages is already built by
+       Hugo, so this stays O(sections) rather than O(pages). */ -}}
+{{- $notes := 0 -}}
+{{- range site.Params.mainSections | default (slice "notes") -}}
+  {{- with site.GetPage (printf "/%s" .) -}}
+    {{- $notes = add $notes (len .RegularPages) -}}
+  {{- end -}}
+{{- end -}}
+{{- $cats := len (index site.Taxonomies (site.Params.taxonomy.categoryPlural | default "categories")) -}}
+{{- $tags := len (index site.Taxonomies (site.Params.taxonomy.tagPlural | default "tags")) -}}
+{{- $blurb := site.Params.siteBlurb -}}
+{{- if not $blurb -}}
+  {{- $blurb = printf "%s %s · %s %s · %s %s"
+        (lang.FormatNumber 0 $notes) (cond (eq $notes 1) "note" "notes")
+        (lang.FormatNumber 0 $cats)  (cond (eq $cats 1) "category" "categories")
+        (lang.FormatNumber 0 $tags)  (cond (eq $tags 1) "tag" "tags") -}}
+{{- end -}}
+
+<footer class="ledger-footer">
+  <span class="ledger-footer-name">{{ site.Title }}</span>
+  <span class="ledger-footer-blurb">{{ $blurb }}</span>
+  <span class="ledger-spacer"></span>
+  <span class="ledger-footer-credit">Ledger theme for Hugo</span>
+  {{- if site.Params.footer.rss | default true }}
+    {{- with site.Home.OutputFormats.Get "rss" }}
+  <a class="ledger-footer-link" href="{{ .RelPermalink }}">RSS</a>
+    {{- end }}
+  {{- end }}
+  {{- with site.Params.footer.sourceURL }}
+  <a class="ledger-footer-link" href="{{ . }}" rel="noopener">Source</a>
+  {{- end }}
+</footer>

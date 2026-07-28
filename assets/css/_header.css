@@ -1,0 +1,288 @@
+/* Header, brand, nav and theme selector.
+   One DOM for both breakpoints — the mobile-only affordances (hamburger, ⧖
+   shortcut) and the desktop-only nav are switched by media query rather than
+   rendered twice, so the theme dropdown exists exactly once per document. */
+
+.ledger-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 0 20px;
+  height: var(--header-height);
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  z-index: 40;
+}
+
+/* ── Brand ───────────────────────────────────────────────────────────────── */
+
+.ledger-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-right: 6px;
+  flex: 0 0 auto;
+}
+
+.ledger-brand-mark {
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.ledger-brand-title {
+  font: 700 15px/1 var(--font-sans);
+  letter-spacing: -0.01em;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+/* ── Nav ─────────────────────────────────────────────────────────────────── */
+
+.ledger-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ledger-nav-link {
+  font: 500 13.5px/1 var(--font-sans);
+  color: var(--dim);
+  padding: 8px 12px;
+  border-radius: var(--r-row);
+}
+
+.ledger-nav-link:hover {
+  background: var(--hover);
+}
+
+.ledger-nav-link[aria-current="page"] {
+  color: var(--accent);
+  background: var(--sel);
+}
+
+.ledger-spacer {
+  flex: 1;
+  min-width: 10px;
+}
+
+/* ── Mobile-only header affordances ──────────────────────────────────────── */
+
+.ledger-hamburger,
+.ledger-search-shortcut {
+  display: none;
+}
+
+.ledger-hamburger {
+  flex-direction: column;
+  gap: 4px;
+  padding: 9px 8px;
+  margin-left: -6px;
+}
+
+.ledger-hamburger span {
+  display: block;
+  width: 17px;
+  height: 1.5px;
+  background: var(--text);
+}
+
+.ledger-search-shortcut {
+  padding: 8px 9px;
+  border-radius: var(--r-row);
+  font: 14px/1 var(--font-sans);
+  color: var(--dim);
+}
+
+.ledger-search-shortcut:hover {
+  background: var(--hover);
+  color: var(--accent);
+}
+
+/* ── Theme selector ──────────────────────────────────────────────────────── */
+
+.ledger-theme {
+  position: relative;
+  flex: 0 0 auto;
+}
+
+.ledger-theme-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 11px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-button);
+  background: var(--panel2);
+}
+
+.ledger-theme-button:hover {
+  border-color: var(--accent);
+}
+
+.ledger-theme-dot {
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex: 0 0 auto;
+}
+
+.ledger-theme-caret {
+  font: 9px/1 var(--font-sans);
+  color: var(--faint);
+}
+
+/* The visible label is chosen by CSS off the pre-paint [data-theme] attribute,
+   so a restored non-default theme never flashes the wrong label. */
+.ledger-theme-label {
+  display: none;
+  font: 500 12.5px/1 var(--font-sans);
+  color: var(--text);
+  white-space: nowrap;
+}
+
+[data-theme="light"] .ledger-theme-label[data-for="light"],
+[data-theme="dark"] .ledger-theme-label[data-for="dark"],
+[data-theme="contrast"] .ledger-theme-label[data-for="contrast"] {
+  display: inline;
+}
+
+.ledger-theme-menu {
+  position: absolute;
+  top: 42px;
+  right: 0;
+  width: 186px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-menu);
+  box-shadow: var(--shadow);
+  padding: 5px;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ledger-theme-menu[hidden] {
+  display: none;
+}
+
+.ledger-theme-option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border-radius: var(--r-row);
+  width: 100%;
+  text-align: left;
+}
+
+.ledger-theme-option:hover {
+  background: var(--hover);
+}
+
+.ledger-theme-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: var(--chip);
+  flex: 0 0 auto;
+}
+
+.ledger-theme-option-label {
+  font: 500 12.5px/1 var(--font-sans);
+  color: var(--text);
+  flex: 1;
+}
+
+.ledger-theme-check {
+  font: 11px/1 var(--font-sans);
+  color: var(--accent);
+  visibility: hidden;
+}
+
+/* Current-theme row: same [data-theme]-driven approach, no JS state sync. */
+[data-theme="light"] .ledger-theme-option[data-theme-value="light"],
+[data-theme="dark"] .ledger-theme-option[data-theme-value="dark"],
+[data-theme="contrast"] .ledger-theme-option[data-theme-value="contrast"] {
+  background: var(--sel);
+}
+
+[data-theme="light"] .ledger-theme-option[data-theme-value="light"] .ledger-theme-option-label,
+[data-theme="dark"] .ledger-theme-option[data-theme-value="dark"] .ledger-theme-option-label,
+[data-theme="contrast"] .ledger-theme-option[data-theme-value="contrast"] .ledger-theme-option-label {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+[data-theme="light"] .ledger-theme-option[data-theme-value="light"] .ledger-theme-check,
+[data-theme="dark"] .ledger-theme-option[data-theme-value="dark"] .ledger-theme-check,
+[data-theme="contrast"] .ledger-theme-option[data-theme-value="contrast"] .ledger-theme-check {
+  visibility: visible;
+}
+
+/* ── Mobile ──────────────────────────────────────────────────────────────── */
+
+@media (max-width: 899px) {
+  .ledger-header {
+    gap: 12px;
+    padding: 0 14px;
+  }
+
+  .ledger-hamburger,
+  .ledger-search-shortcut {
+    display: flex;
+  }
+
+  .ledger-nav {
+    display: none;
+  }
+
+  .ledger-brand {
+    gap: 8px;
+    margin-right: 0;
+  }
+
+  .ledger-brand-mark {
+    width: 18px;
+    height: 18px;
+    border-radius: 6px;
+  }
+
+  .ledger-brand-title {
+    font-size: 14px;
+  }
+
+  .ledger-theme-button {
+    gap: 6px;
+    padding: 7px 9px;
+    border-radius: var(--r-row);
+  }
+
+  .ledger-theme-dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .ledger-theme-label {
+    display: none !important;
+  }
+
+  .ledger-theme-menu {
+    top: 40px;
+    width: 176px;
+  }
+
+  .ledger-theme-option {
+    padding: 9px;
+  }
+
+  .ledger-theme-swatch {
+    display: none;
+  }
+}

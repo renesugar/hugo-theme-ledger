@@ -1,3 +1,15 @@
+{{- /* Which top-level nav entry is active. Cheap to compute and the only thing
+       the header varies on, so it doubles as the header's cache key. */ -}}
+{{- $active := "" -}}
+{{- if .IsHome -}}
+  {{- $active = "home" -}}
+{{- else if hasPrefix .RelPermalink ("/tags/" | relURL) -}}
+  {{- $active = "tags" -}}
+{{- else if hasPrefix .RelPermalink ("/about/" | relURL) -}}
+  {{- $active = "about" -}}
+{{- else if hasPrefix .RelPermalink ("/search/" | relURL) -}}
+  {{- $active = "search" -}}
+{{- end -}}
 <!DOCTYPE html>
 <html lang="{{ or site.Language.Locale "en" }}" data-theme="{{ or site.Params.defaultTheme "light" }}">
 <head>
@@ -8,7 +20,7 @@
 
   <div class="ledger-shell">
 
-    {{/* Step 2 — header (desktop + mobile) and theme selector plug in here. */}}
+    {{ partialCached "header.html" $active $active }}
 
     <div class="ledger-body">
 
@@ -19,12 +31,13 @@
           {{ block "main" . }}{{ end }}
         </div>
 
-        {{/* Step 2 — footer plugs in here. */}}
+        {{ partialCached "footer.html" . }}
       </main>
 
     </div>
   </div>
 
+  {{ partial "scripts.html" . }}
   {{ block "scripts" . }}{{ end }}
 </body>
 </html>

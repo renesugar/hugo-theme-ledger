@@ -32,7 +32,7 @@
 {{- end }}
 
 {{- /* Explicit order; later steps append to $order as they add stylesheets. */}}
-{{- $order := slice "css/_tokens.css" "css/_base.css" }}
+{{- $order := slice "css/_tokens.css" "css/_base.css" "css/_header.css" "css/_footer.css" }}
 {{- $sheets := slice }}
 {{- range $order }}
   {{- with resources.Get . }}{{ $sheets = $sheets | append . }}{{ end }}

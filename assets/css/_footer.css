@@ -1,0 +1,39 @@
+/* Footer. Sits inside <main> so it scrolls with the content panel, as in the
+   prototype, rather than being pinned to the viewport. */
+
+.ledger-footer {
+  flex: 0 0 auto;
+  border-top: 1px solid var(--border);
+  background: var(--panel);
+  padding: 16px 26px 20px;
+  display: flex;
+  gap: 14px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.ledger-footer-name {
+  font: 600 11.5px/1.5 var(--font-sans);
+  color: var(--text);
+}
+
+.ledger-footer-blurb,
+.ledger-footer-credit {
+  font: 400 11px/1.5 var(--font-mono);
+  color: var(--faint);
+}
+
+.ledger-footer-link {
+  font: 400 11px/1.5 var(--font-mono);
+  color: var(--dim);
+}
+
+.ledger-footer-link:hover {
+  color: var(--accent);
+}
+
+@media (max-width: 899px) {
+  .ledger-footer {
+    padding: 16px 14px 20px;
+  }
+}

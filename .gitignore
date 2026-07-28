@@ -20,6 +20,10 @@ yarn-error.log*
 /tmp-corpus/
 /bench/out/
 
+# Browser-verification scratch output
+/.playwright-mcp/
+/screenshots/
+
 # Editors / OS
 *~
 *.swp

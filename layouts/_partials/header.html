@@ -1,0 +1,69 @@
+{{- /* Context: the active nav key ("home" | "tags" | "about" | "search" | "").
+       Nothing else here varies per page, so baseof caches this partial on that
+       key — the whole header renders at most four times per build. */ -}}
+{{- $active := . -}}
+{{- $nav := slice
+      (dict "key" "home"   "name" "Home"   "url" site.Home.RelPermalink)
+      (dict "key" "tags"   "name" "Tags"   "url" ("/tags/" | relURL))
+      (dict "key" "about"  "name" "About"  "url" ("/about/" | relURL))
+      (dict "key" "search" "name" "Search" "url" ("/search/" | relURL))
+-}}
+{{- $themes := slice
+      (dict "value" "light"    "label" "Light theme")
+      (dict "value" "dark"     "label" "Dark theme")
+      (dict "value" "contrast" "label" "High contrast")
+-}}
+
+<header class="ledger-header">
+
+  <button type="button" class="ledger-hamburger" data-ledger-drawer-toggle
+          aria-expanded="false" aria-controls="ledger-sidebar">
+    <span></span><span></span><span></span>
+    <span class="ledger-sr-only">Menu</span>
+  </button>
+
+  <a class="ledger-brand" href="{{ site.Home.RelPermalink }}">
+    <span class="ledger-brand-mark" aria-hidden="true"></span>
+    <span class="ledger-brand-title">{{ site.Title }}</span>
+  </a>
+
+  <nav class="ledger-nav" aria-label="Main">
+    {{- range $nav }}
+    <a class="ledger-nav-link" href="{{ .url }}"
+       {{ if eq .key $active }}aria-current="page"{{ end }}>{{ .name }}</a>
+    {{- end }}
+  </nav>
+
+  <span class="ledger-spacer"></span>
+
+  <a class="ledger-search-shortcut" href="{{ "/search/" | relURL }}">
+    <span aria-hidden="true">&#x29D6;</span>
+    <span class="ledger-sr-only">Search</span>
+  </a>
+
+  <div class="ledger-theme" data-ledger-theme>
+    <button type="button" class="ledger-theme-button" data-ledger-theme-button
+            aria-expanded="false" aria-haspopup="true" aria-controls="ledger-theme-menu">
+      <span class="ledger-theme-dot" aria-hidden="true"></span>
+      <span class="ledger-sr-only">Theme</span>
+      {{- range $themes }}
+      <span class="ledger-theme-label" data-for="{{ .value }}">{{ .label }}</span>
+      {{- end }}
+      <span class="ledger-theme-caret" aria-hidden="true">&#x25BC;</span>
+    </button>
+
+    <div class="ledger-theme-menu" id="ledger-theme-menu" data-card role="menu"
+         aria-label="Colour theme" hidden>
+      {{- range $themes }}
+      <button type="button" class="ledger-theme-option" role="menuitemradio"
+              aria-checked="false" tabindex="-1"
+              data-theme-value="{{ .value }}">
+        <span class="ledger-theme-swatch" aria-hidden="true"></span>
+        <span class="ledger-theme-option-label">{{ .label }}</span>
+        <span class="ledger-theme-check" aria-hidden="true">&#x2713;</span>
+      </button>
+      {{- end }}
+    </div>
+  </div>
+
+</header>

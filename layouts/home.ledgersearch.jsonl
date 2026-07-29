@@ -1,0 +1,34 @@
+{{- /* Index source for the Bluge backend: one JSON object per line.
+
+       Opt-in. It is only produced if the site adds the `ledgersearch` output
+       format to its home page, so a Pagefind site never pays for it. Emitting
+       .Plain for every note is the most expensive thing this theme does — it is
+       a single O(notes) pass at build time, which is what a full-text index
+       needs, but there is no reason to run it when nothing consumes the result.
+
+       Fields mirror the adapter contract in assets/js/search/backends/bluge.js,
+       plus `body` for full-text matching. */ -}}
+{{- if ne (site.Params.search.backend | default "pagefind") "bluge" -}}
+{{- warnf "layouts/home.ledgersearch.jsonl rendered while params.search.backend is %q — the JSONL source is only consumed by the bluge backend." (site.Params.search.backend | default "pagefind") -}}
+{{- end -}}
+{{- $sections := site.Params.mainSections | default (slice "notes") -}}
+{{- range $sections -}}
+{{- with site.GetPage (printf "/%s" .) -}}
+{{- range .RegularPages -}}
+{{- $category := index (.Params.categories | default slice) 0 -}}
+{{- $line := dict
+      "url"         .RelPermalink
+      "title"       .Title
+      "summary"     (or .Params.summary .Summary | plainify)
+      "body"        .Plain
+      "category"    (or $category "")
+      "tags"        (.Params.tags | default slice)
+      "date"        (cond .Date.IsZero "" (.Date.Format "2006-01-02"))
+      "readingTime" (.Params.readingTime | default .ReadingTime)
+   | jsonify (dict "noHTMLEscape" true) -}}
+{{- /* printf carries the newline: a bare {{ "\n" }} between trim markers gets
+       eaten, leaving the whole corpus on one line. */ -}}
+{{- printf "%s\n" $line -}}
+{{- end -}}
+{{- end -}}
+{{- end -}}

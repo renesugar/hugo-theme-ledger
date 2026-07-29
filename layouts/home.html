@@ -27,7 +27,12 @@
 {{- end -}}
 
 {{- $allLabel := site.Params.sidebar.allNotesLabel | default "All notes" -}}
-{{- $query := cond (ne $allLabel "") (printf "category:%s" $allLabel) "" -}}
+{{- /* Through search-clause.html, not printf: the default label contains a
+       space, and the grammar tokenises on whitespace. */ -}}
+{{- $query := "" -}}
+{{- if ne $allLabel "" -}}
+  {{- $query = partial "search-clause.html" (dict "field" "category" "value" $allLabel) -}}
+{{- end -}}
 
 {{- $per := int (site.Params.pagination.home | default 6) -}}
 {{- $ceiling := int (site.Params.scale.maxHomePagerPages | default 0) -}}

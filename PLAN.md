@@ -275,3 +275,18 @@ every query both can express. `exampleSite` carries
 
 Also fixed `footer.html`, where `site.Params.footer.rss | default true` read an
 explicit `rss = false` as absent — Hugo's `default` treats false as empty.
+
+**Follow-ups, found while wiring the generator up to this theme:**
+
+- `home.html` built its primed query with `printf "category:%s"`, so the default
+  "All notes" label — which contains a space — produced a query that tokenised
+  as the category "All" plus the term "notes". It goes through
+  `search-clause.html` like the other six sites now. This is why that partial
+  exists, and it was still missed once.
+- `section.html` called `.Paginate` on the section's whole page set with no cap.
+  Every other unbounded surface is capped by decision D1; this one was not, and
+  a section holding the corpus is the largest single source of pages in a build
+  — 166k notes at 6 per page is ~28k pager directories. New
+  `params.scale.maxSectionPagerPages` (default 500 in the example config),
+  applied by truncating before `.Paginate`, with the same "showing the N most
+  recent" ceiling card home uses.

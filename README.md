@@ -155,6 +155,7 @@ All under `[params]`. Every value shown is the default.
 
   [params.scale]
     maxHomePagerPages = 500     # cap on generated /page/N/ directories
+    maxSectionPagerPages = 500  # same cap for /notes/ and other sections
 
   [params.footer]
     rss = true
@@ -175,12 +176,13 @@ sidebar rows and tag-grid cells for that term link straight to
 This is what keeps builds bounded: without it, one term holding 200k notes would
 generate tens of thousands of pager directories.
 
-### `maxHomePagerPages`
+### `maxHomePagerPages` and `maxSectionPagerPages`
 
 The home view lists every note. At 500k notes and 6 per page that is 83,000
 generated directories, so the list is truncated to this many pages and the rest
-are reachable through search. Raise it if your site is small and you want the
-whole archive crawlable.
+are reachable through search. A section page (`/notes/`) can hold the whole
+corpus too, and is capped the same way. Raise either if your site is small and
+you want the whole archive crawlable; set it to `0` to remove the cap.
 
 ## Search
 

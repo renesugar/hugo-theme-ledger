@@ -73,10 +73,13 @@ capitalizeListTitles = false
     endpoint = "/api/search"      # bluge only
 
   [params.scale]
-    # Ceiling on generated home pager pages (decision D1 in PLAN.md). Past this
-    # the home view stops paginating and points at search instead. Keeps build
-    # time bounded on corpora of 100k+ pages.
+    # Ceilings on generated pager pages (decision D1 in PLAN.md). Past these the
+    # view stops paginating and points at search instead. Keeps build time
+    # bounded on corpora of 100k+ pages. 0 disables a cap.
     maxHomePagerPages = 500
+    # A section can hold the whole corpus, so this one matters just as much:
+    # uncapped, a 166k-note section at 6/page emits ~28k pager directories.
+    maxSectionPagerPages = 500
 
   [params.footer]
     rss = true

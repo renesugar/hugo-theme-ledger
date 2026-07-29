@@ -35,3 +35,6 @@ yarn-error.log*
 /search-server/ledger-search-server
 /search-server/bluge-index*/
 /search-server/*.stamp.json
+
+# Scale-test corpora and reports
+/bench/site/

@@ -175,10 +175,18 @@ passes everything, which is arguably the point of shipping it.
 `bluge.js` against the documented JSON contract, plus a reference Go server
 sketch and swap instructions.
 
-### 13. Scale test harness
-`scripts/gen-corpus.js` (10k / 100k / 500k), timing harness for `hugo` build,
-Pagefind index, and query latency. Record results in `PERFORMANCE.md`. Verify no
-unbounded query regressions.
+### 13. Scale test harness  ✅ (500k tier outstanding)
+`scripts/gen-corpus.js`, `scripts/bench.sh`, `scripts/query-latency.js`.
+Results in `PERFORMANCE.md`.
+
+10k and 100k are measured. **500k has not been run** — extrapolating the
+measured O(n^1.17) build exponent puts it near 30 minutes and 12 GB peak RSS.
+
+The headline finding changes the theme's guidance rather than its code: the
+build scales fine to 100k, but Pagefind's filter path costs 8–10 s there, and
+`category:`/`tag:` routing is the design's primary navigation. Bluge answers the
+same queries in 33–44 ms. Recommend Pagefind up to ~25k notes and Bluge beyond;
+this is exactly what decision D4's swappable interface was for.
 
 ### 14. Docs
 `AGENTS.md`, full `README.md` (install, dev, config reference, search-backend

@@ -4,10 +4,15 @@
      init(config)                      -> Promise<void>
      search(parsed, {page, perPage})   -> Promise<{total, page, pages, results}>
 
-   Pagefind returns the full ranked id list up front but loads each result's
-   data lazily. Only the current page's slice is resolved, so cost per query is
-   proportional to perPage rather than to the size of the result set — which is
-   what keeps a 500k-page site responsive. */
+   Pagefind returns the full ranked id list up front and loads each result's
+   data lazily. Only the current page's slice is resolved here, so the expensive
+   part — fetching and decompressing per-page metadata — is proportional to
+   perPage, not to the result count.
+
+   The ranked list itself is not free: Pagefind materialises one stub per match,
+   so a query matching most of the corpus costs proportionally more than a
+   selective one. Paging through results is flat; broadening the query is not.
+   See PERFORMANCE.md for the measured curve. */
 
 var pagefind = null;
 

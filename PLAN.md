@@ -188,52 +188,24 @@ build scales fine to 100k, but Pagefind's filter path costs 8–10 s there, and
 same queries in 33–44 ms. Recommend Pagefind up to ~25k notes and Bluge beyond;
 this is exactly what decision D4's swappable interface was for.
 
-### 14. Pagefind performance investigation
+### 14. Pagefind performance investigation  ✅
+Five hypotheses tested against the 100k corpus; full write-up in
+`PERFORMANCE.md`.
 
-Step 13 measured `category:`/`tag:` filters at 8.5–9.7 s and a 21 s cold start
-at 100k notes. Since those filters are the theme's primary navigation, it is
-worth attempting to move the Pagefind crossover before settling for "use Bluge
-past ~25k".
+| # | hypothesis | outcome |
+|---|---|---|
+| 1 | server-render page 1 of an over-limit archive | ✅ primary navigation now issues zero search queries |
+| 2 | avoid the `filter_only` branch | ❌ cost tracks match count, not the branch |
+| 3 | worker-boundary serialisation | ⚠️ no public toggle; would need a patched bundle |
+| 4 | warm filter chunks via `pagefind.filters()` | ❌ costs 106 s and does not help |
+| 5 | shrink the index by excluding note bodies | ❌ index is metadata-dominated; 9% smaller, latency unchanged |
 
-**Already ruled out.** Batching results and lazily resolving `.data()` for only
-the current page — the obvious suggestion — has been in `backends/pagefind.js`
-since step 8, and measurement shows it works: resolving the six visible results
-costs 4–9 ms whether 605 or 20,624 notes matched. The cost is inside
-`pagefind.search()`, before any theme code runs. Confirmed against the generated
-bundle: the browser API has no `limit`/`offset`, so a query cannot be asked for
-less than its whole match set.
+Only 1 worked, and it works by not searching rather than by searching faster.
+The recommendation is now interaction-shaped rather than purely size-shaped:
+browsing is fast at 100k, hand-typed filter queries and deep paging are not.
 
-Hypotheses to test, cheapest and most certain first:
-
-1. **Server-render page 1 of an over-limit archive.** Independent of Pagefind.
-   Hugo already knows the term's pages; rendering the first 6 cards is O(1) per
-   term and stays inside D2's bound. The common path — click a tag, read the
-   first page — would never call search at all. Expected to remove the 8–10 s
-   from primary navigation whether or not 2–4 pan out.
-
-2. **Avoid the filter-only code path.** The bundle branches on
-   `filter_only = term === null`, which is exactly what the theme sends for a
-   bare `category:`/`tag:` query. Measure a filtered search with a term against
-   filter-only at equal match counts.
-
-3. **Worker-boundary serialisation.** Results are marshalled out of a
-   SharedWorker with `result.data` rebound per result. 20k stubs through
-   structured clone would explain cost tracking match count. Compare worker and
-   non-worker paths.
-
-4. **Filter chunk warming.** `pagefind.filters()` bulk-loads every filter index
-   chunk. If filtered-query cost is chunk loading rather than compute, warming
-   once per session fixes it; if not, it rules the theory out.
-
-5. **Index size.** 451 MB drives the 21 s cold start. A
-   `params.search.indexBody = false` option would index titles, summaries and
-   taxonomy only — much smaller and faster, at the cost of full-text search.
-   A trade-off to expose, not to impose.
-
-Each hypothesis is measured on the 100k corpus and recorded in
-`PERFORMANCE.md`, including the ones that fail. If none moves the crossover
-materially, the outcome is the documented recommendation already in place —
-which is a legitimate result, not a failure.
+Also corrected the step 13 filter latencies, which were measured partially warm
+and understated the cold case.
 
 ### 15. Docs
 `AGENTS.md`, full `README.md` (install, dev, config reference, search-backend

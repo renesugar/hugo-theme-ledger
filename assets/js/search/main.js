@@ -28,6 +28,7 @@ function init(root) {
   var pageEl = root.querySelector('[data-ledger-result-page]');
   var emptyEl = root.querySelector('[data-ledger-search-empty]');
   var emptyTitle = emptyEl.querySelector('.ledger-empty-title');
+  var noticeEl = root.querySelector('[data-ledger-search-notice]');
 
   // On an over-limit term archive the query belongs to the page, not the URL,
   // so it is never written back into the query string.
@@ -85,6 +86,7 @@ function init(root) {
   }
 
   function render(query, response) {
+    notice(response.unsupported);
     metaEl.hidden = false;
     countEl.textContent = response.total.toLocaleString() +
       (response.total === 1 ? ' result' : ' results') +
@@ -112,7 +114,24 @@ function init(root) {
     if (response.pages > 1) pagerEl.appendChild(pager(query, response));
   }
 
+  /* Clauses the active backend could not honour. Saying so is the whole point:
+     a Pagefind site that quietly dropped `since:` would return the unbounded
+     set and look like it had answered the question. */
+  function notice(unsupported) {
+    if (!noticeEl) return;
+    var dropped = unsupported || [];
+    if (!dropped.length) {
+      noticeEl.textContent = '';
+      noticeEl.hidden = true;
+      return;
+    }
+    noticeEl.textContent = 'Ignored by this site’s search backend: ' +
+      dropped.join(', ') + '.';
+    noticeEl.hidden = false;
+  }
+
   function renderError(error) {
+    notice([]);
     metaEl.hidden = false;
     countEl.textContent = 'Search is unavailable';
     pageEl.textContent = '';

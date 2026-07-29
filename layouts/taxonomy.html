@@ -40,7 +40,7 @@
     {{- $count := len .Pages -}}
     {{- $over := gt $count $limit -}}
     {{- $url := .RelPermalink -}}
-    {{- if $over }}{{ $url = printf "%s?q=%s" $searchURL (printf "%s:%s" $singular $name | urlquery) }}{{ end -}}
+    {{- if $over }}{{ $url = printf "%s?q=%s" $searchURL (partial "search-clause.html" (dict "field" $singular "value" $name) | urlquery) }}{{ end -}}
     <a class="ledger-grid-cell" href="{{ $url }}">
       <span class="ledger-grid-name">{{ if $isTag }}#{{ end }}{{ $name }}</span>
       {{- if $over }}

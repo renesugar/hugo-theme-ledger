@@ -17,7 +17,19 @@
 {{- $category := index (.Params.categories | default slice) 0 -}}
 {{- $tags := .Params.tags | default slice -}}
 {{- $reading := .Params.readingTime | default .ReadingTime -}}
-{{- $summary := or .Params.summary .Summary -}}
+{{- /* A written standfirst only. Hugo's auto `.Summary` is the first words of
+       the body, which on this layout sits directly above the same words —
+       result cards still fall back to it, where an excerpt is useful. */ -}}
+{{- $summary := .Params.summary -}}
+
+{{- /* Notes imported from a source that already carries its own heading and
+       timestamp in the body — a Twitter/X archive, say — would otherwise show
+       both twice. `ledgerHideTitle` keeps the h1 in the document outline for
+       assistive technology but takes it off the screen; `ledgerHideMeta` drops
+       the category/date row. Both are per-note front matter, because a vault
+       usually holds a mix. */ -}}
+{{- $hideTitle := .Params.ledgerHideTitle | default false -}}
+{{- $hideMeta := .Params.ledgerHideMeta | default false -}}
 
 <article class="ledger-post" {{ if $indexable }}data-pagefind-body{{ end }}>
 
@@ -50,11 +62,13 @@
   <a class="ledger-post-back" href="{{ site.Home.RelPermalink }}" data-ledger-back>&larr; back to results</a>
 
   <header class="ledger-post-head">
+    {{- if not $hideMeta }}
     <div class="ledger-post-meta">
       {{- with $category }}
       {{- $url := "" -}}
       {{- with site.GetPage (printf "/%s/%s" $catPlural (urlize .)) -}}
-        {{- $url = cond (gt (len .Pages) $limit) (printf "%s?q=%s" $searchURL (printf "category:%s" $category | urlquery)) .RelPermalink -}}
+        {{- $clause := partial "search-clause.html" (dict "field" "category" "value" $category) -}}
+        {{- $url = cond (gt (len .Pages) $limit) (printf "%s?q=%s" $searchURL ($clause | urlquery)) .RelPermalink -}}
       {{- end }}
       <a class="ledger-post-category" href="{{ or $url $searchURL }}">{{ . }}</a>
       {{- end }}
@@ -63,8 +77,9 @@
         {{- with $reading }} · {{ . }} min read{{ end -}}
       </span>
     </div>
+    {{- end }}
 
-    <h1>{{ .Title }}</h1>
+    <h1{{ if $hideTitle }} class="ledger-sr-only"{{ end }}>{{ .Title }}</h1>
 
     {{- with $summary }}
     <p class="ledger-post-standfirst">{{ . | plainify }}</p>
@@ -72,7 +87,10 @@
   </header>
 
   {{- /* Front-matter `image`: a page-bundle resource name, a site-relative
-         path, or an absolute URL. Without one, the striped block stands in. */ -}}
+         path, or an absolute URL. Without one, the striped block stands in —
+         unless params.post.heroPlaceholder is off, which is what a generated
+         archive of short notes wants: 100k striped rectangles are noise, not a
+         design. */ -}}
   {{- $hero := "" -}}
   {{- with .Params.image -}}
     {{- with $.Resources.GetMatch . -}}
@@ -81,6 +99,10 @@
       {{- $hero = cond (hasPrefix . "http") . (relURL .) -}}
     {{- end -}}
   {{- end }}
+  {{- /* Not `| default true`: Hugo's `default` treats false as absent, and the
+         only reason to set this param is to set it to false. */ -}}
+  {{- $placeholder := ne ((site.Params.post | default dict).heroPlaceholder) false -}}
+  {{- if or $hero $placeholder }}
   <div class="ledger-hero" data-card>
     {{- if $hero }}
     <img src="{{ $hero }}" alt="{{ .Params.imageAlt | default "" }}" loading="lazy" width="1600" height="640">
@@ -88,6 +110,7 @@
     <span class="ledger-hero-label">hero image · 1600×640</span>
     {{- end }}
   </div>
+  {{- end }}
 
   <div class="ledger-prose">
     {{ .Content }}
@@ -101,7 +124,7 @@
     {{- with site.GetPage (printf "/%s/%s" $tagPlural (urlize .)) -}}
       {{- $url = cond (gt (len .Pages) $limit) "" .RelPermalink -}}
     {{- end -}}
-    {{- if not $url }}{{ $url = printf "%s?q=%s" $searchURL (printf "tag:%s" . | urlquery) }}{{ end }}
+    {{- if not $url }}{{ $url = printf "%s?q=%s" $searchURL (partial "search-clause.html" (dict "field" "tag" "value" .) | urlquery) }}{{ end }}
     <a class="ledger-post-tag" href="{{ $url }}">#{{ . }}</a>
     {{- end }}
   </footer>

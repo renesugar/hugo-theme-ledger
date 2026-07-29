@@ -83,6 +83,12 @@ Everything else scales cleanly:
 Pagefind indexing is ~5× slower than Bluge and produces a ~4× larger index on
 this corpus.
 
+**The Bluge figures above predate phrase search.** They were measured with an
+index carrying no term positions on `title`, `summary` or `body`. Supporting
+`"quoted phrase"` requires positions, which makes the index larger — the 111 MB
+at 100k is a floor, not the current size, and anything that depends on it (a
+deployment target with a bundle-size cap, for instance) needs re-measuring.
+
 One caveat on index size: the synthetic notes are ~180 words drawn randomly
 from a large vocabulary, with almost no phrase repetition between documents.
 That is close to worst case for an inverted index. Real prose repeats itself

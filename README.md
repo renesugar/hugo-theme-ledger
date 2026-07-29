@@ -82,11 +82,27 @@ tags: ["sourdough", "baking"]
 readingTime: 7               # optional; falls back to Hugo's .ReadingTime
 image: "cover.svg"           # optional hero: bundle resource, path, or URL
 imageAlt: "..."              # optional
+ledgerHideTitle: false       # optional; see below
+ledgerHideMeta: false        # optional
 ---
 ```
 
+`summary` is the standfirst under the title. It is not generated: a note without
+one shows no standfirst, because Hugo's automatic summary is the first words of
+the body, which on a post page sit directly below it. Result cards do fall back
+to it, where an excerpt is useful.
+
 Without `image`, the post shows the design's striped placeholder — that is the
-intended fallback, not a missing asset.
+intended fallback, not a missing asset. Turn it off site-wide with
+`params.post.heroPlaceholder = false`, which a generated archive of short notes
+wants: a placeholder on 100k pages is noise rather than design.
+
+`ledgerHideTitle` and `ledgerHideMeta` are for notes imported from a source that
+already carries its own heading and timestamp in the body — a Twitter/X archive,
+say — which would otherwise show both twice. `ledgerHideTitle` keeps the `h1` in
+the document outline for assistive technology and takes it off the screen;
+`ledgerHideMeta` drops the category/date row. They are per-note, because a vault
+usually holds a mix.
 
 Two standalone pages opt into their own layouts:
 
@@ -128,6 +144,9 @@ All under `[params]`. Every value shown is the default.
     order = "count"             # count | alpha
     allNotesLabel = "All notes" # synthetic first category; "" removes it
     maxTerms = 200              # cap on terms in the shared sidebar asset
+
+  [params.post]
+    heroPlaceholder = true      # striped stand-in when a note has no `image`
 
   [params.search]
     backend = "pagefind"        # pagefind | bluge
@@ -180,14 +199,33 @@ npx pagefind --site public
 npm run preview      # hugo + pagefind + static serve
 ```
 
-Query grammar:
+### Query grammar
+
+One grammar, parsed once in `assets/js/search/query.js` and handed to whichever
+backend is configured:
 
 | query | meaning |
 |---|---|
-| `category:Recipes` | exact category match; names may contain spaces |
-| `tag:sourdough` | exact tag match |
+| `category:Recipes` | exact category match |
+| `tag:sourdough` | exact tag match; repeat it to require several |
+| `category:"Field notes"` | a value containing a space must be quoted |
 | `category:All notes` | everything (matches `sidebar.allNotesLabel`) |
+| `"pinch of salt"` | exact phrase |
+| `since:2026-06-01` | on or after that date |
+| `until:2026-07-01` | strictly before it, so one day is `since:D until:D+1` |
 | anything else | free text over title, summary and body |
+
+Clauses are ANDed, and anything that does not fit the grammar — `foo:bar`,
+`since:yesterday`, a URL — is searched as text.
+
+**Not every backend implements all of it.** Pagefind has filters and phrases but
+no date range, so a `since:`/`until:` query there returns the unbounded set and
+the results view says which clauses were ignored. Bluge implements the whole
+grammar.
+
+Values with spaces have to be quoted, so the theme generates every clause it
+puts in a link through `layouts/_partials/search-clause.html`, which quotes only
+when needed. If you generate a query yourself, use that partial.
 
 ### Bluge (for large or search-led sites)
 

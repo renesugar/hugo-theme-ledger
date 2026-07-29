@@ -54,6 +54,10 @@
     </span>
   </div>
 
+  {{- /* Filled in by the controller when the active backend had to drop part of
+         the query — `since:`/`until:` under Pagefind, for instance. */ -}}
+  <p class="ledger-search-notice" data-ledger-search-notice role="status" aria-live="polite" hidden></p>
+
   <div class="ledger-results" data-ledger-search-results>
     {{- range $prerendered }}
     {{ partial "result-card.html" . }}

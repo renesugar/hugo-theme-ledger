@@ -2,7 +2,14 @@
 
    Implements the adapter contract (decision D4 in PLAN.md):
      init(config)                      -> Promise<void>
-     search(parsed, {page, perPage})   -> Promise<{total, page, pages, results}>
+     search(parsed, {page, perPage})   -> Promise<{total, page, pages, results,
+                                                   unsupported}>
+
+   Pagefind covers most of the grammar: `category:`/`tag:` become filters, and
+   quoted phrases are passed through because Pagefind reads quotes as an exact
+   phrase itself. It has no date filter, so `since:`/`until:` are reported in
+   `unsupported` — a Pagefind-hosted site tells the visitor those bounds were
+   dropped rather than silently returning the unbounded set.
 
    Pagefind returns the full ranked id list up front and loads each result's
    data lazily. Only the current page's slice is resolved here, so the expensive
@@ -30,8 +37,14 @@ export async function search(parsed, opts) {
   var perPage = Math.max(1, opts.perPage || 6);
 
   var filters = {};
-  if (parsed.field === 'category') filters.category = parsed.value;
-  else if (parsed.field === 'tag') filters.tag = parsed.value;
+  // One value is passed bare; several use Pagefind's `all` operator, because
+  // the grammar ANDs repeated clauses and an array alone would mean "any of".
+  if (parsed.categories.length) filters.category = filterValue(parsed.categories);
+  if (parsed.tags.length) filters.tag = filterValue(parsed.tags);
+
+  var unsupported = [];
+  if (parsed.since) unsupported.push('since:');
+  if (parsed.until) unsupported.push('until:');
 
   // A null term with filters is Pagefind's "everything matching these filters".
   var term = parsed.text ? parsed.text : null;
@@ -57,8 +70,13 @@ export async function search(parsed, opts) {
     total: total,
     page: page,
     pages: pages,
-    results: data.map(toResult)
+    results: data.map(toResult),
+    unsupported: unsupported
   };
+}
+
+function filterValue(values) {
+  return values.length === 1 ? values[0] : { all: values };
 }
 
 function toResult(d) {

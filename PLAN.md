@@ -28,6 +28,7 @@ ordinary build instead of only in production:
 | 16 notes at 6/page | multi-page pagination, disabled ends |
 | `proxmox-backup-rotation/` page bundle + `cover.svg` | hero image from a bundle resource |
 | `zfs-scrub-schedule` + `/img/hero-sample.svg` | hero image from a site-relative path |
+| `captured-thread-reply` | `ledgerHideTitle` / `ledgerHideMeta`, and two shared tags for `tag:a tag:b` |
 | every other note | the striped hero fallback |
 
 Branches that cannot ship in the corpus — the absolute-URL hero, the home pager
@@ -224,3 +225,53 @@ already hit in this repo.
 `README.md` — install, required config, content model, full `[params]`
 reference, both search backends and how to choose, development and
 benchmarking, accessibility.
+
+### 16. Grammar, imported-note switches, and one Bluge contract  ✅
+Prerequisites for using this theme as the output of
+`/home/renes/projects/movenotes-v3/obsidian2site.py`, whose generator supports a
+larger query grammar than the theme did and whose server spoke a different HTTP
+shape. Planned in that repo's `LEDGER_MIGRATION_PLAN.md` (step 21).
+
+**Grammar.** `query.js` now tokenises rather than matching one leading clause:
+repeatable `tag:`/`category:`, `since:`/`until:` date bounds, quoted phrases and
+free text, all ANDed. The parsed shape is
+`{categories[], tags[], phrases[], terms[], since, until, text, matchAll}`.
+
+Tokenising means a value containing a space needs quoting, which the old
+"remainder of the string is the value" rule did not. Every template that
+generates a clause — six of them — now goes through
+`_partials/search-clause.html`, which quotes only when necessary. That partial
+exists so the quoting rule cannot drift from `query.js`.
+
+**Unsupported clauses are reported, not dropped.** A backend returns the clause
+names it could not honour in `unsupported`, and the search view says so.
+Pagefind returns `['since:', 'until:']`: it has filters and phrases but no date
+range, and quietly returning the unbounded set would look like an answer.
+
+**Phrases needed term positions.** The reference server indexed no positions, so
+the first `"quoted phrase"` query returned zero results while looking healthy.
+`title`, `summary` and `body` now carry `SearchTermPositions()`. Positions
+enlarge the index, which makes the Bluge sizes in `PERFORMANCE.md` a floor.
+
+**One HTTP contract.** `search-server` accepts repeatable `phrase`/`category`/
+`tag`, `since`/`until`, `page`/`per` *or* `offset`/`limit`, and `sort`; returns
+`backend`, `query`, `total`, `page`, `per`, `offset`, `limit`, `results`; sends
+`Server-Timing` and logs every request. Malformed or inverted date bounds are
+400s. `main_test.go` pins the parsing rules, since two independent clients
+depend on them.
+
+**Imported-note switches.** `ledgerHideTitle` keeps the `h1` in the document
+outline and takes it off the screen; `ledgerHideMeta` drops the category/date
+row; `params.post.heroPlaceholder = false` removes the striped stand-in
+site-wide. All three are for archives whose notes carry their own heading,
+timestamp and no hero — a Twitter/X import shows all of it twice otherwise. The
+standfirst also stopped falling back to Hugo's auto `.Summary`, which is the
+first words of the body sitting directly beneath it.
+
+Verified in a browser against both backends: every query form was run through
+the real search UI on a Bluge build and a Pagefind build, and the two agree on
+every query both can express. `exampleSite` carries
+`notes/captured-thread-reply.md` as the imported-note fixture.
+
+Also fixed `footer.html`, where `site.Params.footer.rss | default true` read an
+explicit `rss = false` as absent — Hugo's `default` treats false as empty.

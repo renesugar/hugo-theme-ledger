@@ -37,7 +37,7 @@
   {{- range site.Params.mainSections | default (slice "notes") -}}
     {{- with site.GetPage (printf "/%s" .) -}}{{- $notes = add $notes (len .RegularPages) -}}{{- end -}}
   {{- end -}}
-  {{- $allURL := printf "%s?q=%s" ("/search/" | relURL) (printf "category:%s" $allLabel | urlquery) -}}
+  {{- $allURL := printf "%s?q=%s" ("/search/" | relURL) (partial "search-clause.html" (dict "field" "category" "value" $allLabel) | urlquery) -}}
   {{- $catItems = (slice (dict "name" $allLabel "url" $allURL "path" "" "count" $notes "over" (gt $notes $limit))) | append $catItems -}}
   {{- $catTotal = add $catTotal 1 -}}
 {{- end -}}

@@ -22,12 +22,21 @@ The server implements exactly what `assets/js/search/backends/bluge.js` calls.
 Anything that answers this shape can replace it:
 
 ```
-GET /api/search?q=<text>&category=<name>&tag=<name>&page=<n>&per=<n>
+GET /api/search?q=<free text>
+               &phrase=<exact phrase>   (repeatable)
+               &category=<name>         (repeatable)
+               &tag=<name>              (repeatable)
+               &since=YYYY-MM-DD&until=YYYY-MM-DD
+               &page=<n>&per=<n>
 
 {
-  "total": 1234,
-  "page": 1,
-  "per": 6,
+  "backend": "bluge",
+  "query":   "category:Recipes tag:sourdough",
+  "total":   1234,
+  "page":    1,
+  "per":     6,
+  "offset":  0,
+  "limit":   6,
   "results": [
     {
       "title": "Sourdough starter maintenance",
@@ -42,13 +51,32 @@ GET /api/search?q=<text>&category=<name>&tag=<name>&page=<n>&per=<n>
 }
 ```
 
-`category` and `tag` arrive as separate parameters, already parsed. The
-`category:` / `tag:` grammar is handled client-side in
-`assets/js/search/query.js`, so a backend never re-parses it — including the
-rule that the configured "all notes" label means *no* filter.
+Every clause arrives as a separate parameter, already parsed. The grammar —
+`category:`, `tag:`, `since:`, `until:`, quoted phrases, free text — is handled
+client-side in `assets/js/search/query.js`, so a backend never re-parses it,
+including the rule that the configured "all notes" label means *no* filter.
+
+| parameter | notes |
+|---|---|
+| `q` | free-text terms, ANDed |
+| `phrase` | exact phrase; repeatable, ANDed |
+| `category`, `tag` | exact keyword match; repeatable, ANDed |
+| `since` | inclusive lower date bound, `YYYY-MM-DD` |
+| `until` | **exclusive** upper bound, so one day is `since:D until:D+1` |
+| `page`, `per` | what `bluge.js` sends; `per` is capped at 100 |
+| `offset`, `limit` | accepted instead, for callers that are not the adapter |
+| `sort` | `date` or `score`; by default, date when there is no text to rank |
+
+A malformed date or an inverted range is a `400`, not a silently empty result.
 
 Paging is server-side: the endpoint receives `page` and `per` and returns only
 that slice, so a large corpus never crosses the wire.
+
+The response echoes `backend` and `query`, and every response carries a
+`Server-Timing: search;dur=…` header and an `X-Ledger-Search-Backend` header.
+Each request is logged with its query, total, window and duration — so a site
+that looks like it is not reaching the backend can be told apart from one that
+is reaching it and finding nothing.
 
 `GET /api/health` returns `{"backend":"bluge","notes":N}`.
 
@@ -118,6 +146,12 @@ only needs `endpoint` to resolve — same origin, or CORS on your side.
 - `category` and `tag` are keyword fields — matched exactly, not tokenised, so
   `tag:sourdough` cannot also match "sourdoughs".
 - `title` is boosted 5×, `summary` 2×, `body` 1×.
+- `title`, `summary` and `body` are indexed **with term positions**. Without
+  them a `"quoted phrase"` query matches nothing at all rather than failing
+  loudly — the phrase clause needs to know which terms are adjacent. Positions
+  make the index larger; that is what the phrase clause costs.
+- Date bounds are a lexical range over the sortable ISO date, so no separate
+  datetime field is needed: zero-padded dates sort chronologically as text.
 - With no text query, results sort newest-first rather than by index order.
 - The index is written to a temporary directory and swapped into place, so an
   interrupted build never leaves a partial index behind.
@@ -128,3 +162,8 @@ Add a module beside `pagefind.js` and `bluge.js` exporting `init(config)` and
 `search(parsed, {page, perPage})`, register it in the `BACKENDS` map in
 `assets/js/search/main.js`, and select it with `params.search.backend`. The
 parsed query shape and the result shape are the whole interface.
+
+A backend need not implement every clause, but it must say which ones it
+dropped: return their names in `unsupported` (`['since:', 'until:']`) and the
+search view tells the visitor. Pagefind does exactly this — it has filters and
+phrases but no date range.

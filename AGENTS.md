@@ -75,17 +75,42 @@ page and hands the rest to the search backend.
 
 ## Search
 
-The grammar (`category:`, `tag:`, free text) is parsed once, backend-agnostically,
-in `assets/js/search/query.js`. Backends implement two methods:
+The grammar — `category:`, `tag:` (repeatable), `since:`, `until:`, quoted
+phrases, free text — is parsed once, backend-agnostically, in
+`assets/js/search/query.js`, into:
+
+```js
+{ categories[], tags[], phrases[], terms[], since, until, text, matchAll }
+```
+
+Backends implement two methods:
 
 ```js
 init(config)                    -> Promise<void>
-search(parsed, {page, perPage}) -> Promise<{total, page, pages, results}>
+search(parsed, {page, perPage}) -> Promise<{total, page, pages, results,
+                                            unsupported}>
 ```
 
 Add one beside `pagefind.js`/`bluge.js`, register it in the `BACKENDS` map in
 `main.js`, select it with `params.search.backend`. Do not re-parse the grammar
 in a backend.
+
+**A backend that cannot honour a clause must name it in `unsupported`**, and the
+search view tells the visitor. Pagefind has filters and phrases but no date
+range; silently dropping `since:` would return the unbounded set and look like an
+answer.
+
+**Every generated query clause goes through `_partials/search-clause.html`.**
+The grammar tokenises on whitespace, so `category:Field notes` parses as a
+category plus a stray term — the partial quotes values that need it. Six
+templates build queries and all six must agree with `query.js`; that is why the
+rule lives in one partial rather than in a `printf` in each.
+
+**Phrase queries need term positions in the index.** `search-server` indexes
+`title`, `summary` and `body` with `SearchTermPositions()`. Drop that and
+`"quoted phrase"` matches nothing at all rather than failing loudly. Positions
+also make the index bigger, so the Bluge index sizes in `PERFORMANCE.md`
+(measured before phrases existed) understate a phrase-capable index.
 
 **Pagefind indexing is scoped by a single `data-pagefind-body`** on note
 articles in `page.html`. Pagefind indexes *only* marked elements once any exist,

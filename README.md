@@ -251,10 +251,11 @@ theme menu and panel toggles, a `role="separator"` split bar with arrow-key
 resizing, focus trapped in the mobile drawer, an `aria-live` results count, a
 visible skip link, and a focus ring on every interactive element.
 
-Two colour pairs in the supplied palette fall below WCAG AA — `--faint` on
-`--panel` most notably — and were left as specified because the design calls the
-colours final. They are documented in [PLAN.md](PLAN.md) with suggested
-replacements. The high-contrast theme passes everything.
+Every text-bearing element clears WCAG AA (4.5:1) in all three themes, verified
+by sweeping the rendered DOM rather than by inspecting the palette. This
+required raising `--faint` and darkening `--accent` slightly from the values in
+the original design; hue and chroma are unchanged. See [PLAN.md](PLAN.md) for
+the before/after numbers.
 
 ## Credits
 

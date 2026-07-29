@@ -157,19 +157,24 @@ Focus rings, `prefers-reduced-motion`, keyboard paths for drawer/dropdown/split
 bar, screen-reader labels, document outline, and a measured contrast audit of
 all three themes.
 
-**Outstanding — a design decision, not a code change.** Two token pairs measure
-below WCAG AA and were left as specified, since the handoff calls the colours
-final:
+**Contrast: resolved.** The handoff's `--faint` measured 2.67:1 (light) and
+3.58:1 (dark) on `--panel`, and `--accent` on `--sel` measured 4.27:1 — all
+below WCAG AA. The palette was corrected rather than documented as a known
+failure:
 
-| Pair | Light | Dark | Contrast | Used by |
-|---|---|---|---|---|
-| `--faint` on `--panel` | 2.67 | 3.58 | 8.80 | card dates, panel eyebrows, mini-pager range, footer meta |
-| `--accent` on `--sel` | 4.27 | 5.72 | 6.95 | category chip, active nav, current page number |
+| token | was | now | effect |
+|---|---|---|---|
+| `--faint` light | `#9a9fa5` | `#6b7079` | 2.67 → 4.98 on `--panel`, 4.52 on `--bg` |
+| `--faint` dark | `#71767d` | `#868b92` | 3.58 → 4.77 |
+| `--accent` light | `oklch(0.55 …)` | `oklch(0.53 …)` | accent-on-`--sel` 4.27 → 4.65; white-on-accent 4.86 → 5.29 |
 
-`--faint` is the significant one: it fails AA (4.5:1) in light and dark for the
-small mono metadata it carries. Roughly `#767b82` (light) and `#8b9199` (dark)
-would clear 4.5:1 while staying recognisably faint. The `contrast` theme already
-passes everything, which is arguably the point of shipping it.
+Hue and chroma are unchanged; only lightness moved. A sweep of every
+text-bearing element in the shell — 32 of them, in all three themes — now finds
+nothing below 4.5:1.
+
+`--bg` turned out to be the binding constraint, not `--panel`: the results
+"Page N of M" line sits directly on the content-panel background, so a value
+that cleared AA on `--panel` alone was not enough.
 
 ### 12. Bluge adapter
 `bluge.js` against the documented JSON contract, plus a reference Go server

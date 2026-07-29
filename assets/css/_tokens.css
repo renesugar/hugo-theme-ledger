@@ -7,11 +7,18 @@
   --panel2: #fafaf8;
   --text: #1d1f22;
   --dim: #63686e;
-  --faint: #9a9fa5;
+  /* Raised from the handoff's #9a9fa5, which measured 2.67:1 on --panel and
+     failed WCAG AA for the small mono metadata it carries. Now 4.98:1 on
+     --panel and 4.52:1 on --bg — the results "Page N of M" line sits directly
+     on --bg, so --panel alone is not the binding constraint. */
+  --faint: #6b7079;
   --border: #e7e7e3;
   --hover: #f2f2ef;
   --sel: oklch(0.955 0.017 255);
-  --accent: oklch(0.55 0.115 255);
+  /* Darkened from L=0.55. Accent on --sel measured 4.27:1 — just under AA — on
+     the category chip, active nav item and current page number. 4.65:1 now, and
+     white-on-accent improves from 4.86 to 5.29 as a side effect. */
+  --accent: oklch(0.53 0.115 255);
   --chip: #f1f1ed;
   --chipText: #5f646b;
   --onAccent: #ffffff;
@@ -24,7 +31,8 @@
   --panel2: #212529;
   --text: #e9eaec;
   --dim: #a2a7ad;
-  --faint: #71767d;
+  /* Raised from the handoff's #71767d (3.58:1 on --panel). 4.77:1 now. */
+  --faint: #868b92;
   --border: #2b2f34;
   --hover: #262a2f;
   --sel: oklch(0.33 0.045 255);

@@ -34,6 +34,11 @@ function init(root) {
   var pinned = root.getAttribute('data-pinned') === 'true';
   var pinnedQuery = root.getAttribute('data-initial-query') || '';
 
+  // The server already rendered page 1 (and the count that goes with it), so
+  // the backend is not consulted until the visitor asks for something else.
+  var prerendered = root.getAttribute('data-prerendered') === 'true';
+  var prerenderedTotal = parseInt(root.getAttribute('data-total'), 10) || 0;
+
   var token = 0;   // guards against out-of-order responses
 
   function currentQuery() {
@@ -202,6 +207,18 @@ function init(root) {
     return node;
   }
 
+  /* Build the pager for the server-rendered first page without searching for
+     it. Everything else — clicking a page, editing the query — goes through the
+     normal path, so this is only ever a first-paint shortcut. */
+  function adoptPrerendered(query) {
+    var pages = Math.max(1, Math.ceil(prerenderedTotal / config.perPage));
+    if (pages > 1) {
+      pagerEl.appendChild(pager(query, {
+        page: 1, pages: pages, total: prerenderedTotal, results: []
+      }));
+    }
+  }
+
   form.addEventListener('submit', function (event) {
     // On a pinned term archive the query belongs to that URL, so editing it is
     // a request to leave: let the form navigate to /search/ natively.
@@ -214,5 +231,9 @@ function init(root) {
     run(currentQuery(), currentPage(), { skipURL: true });
   });
 
-  run(currentQuery(), currentPage(), { replace: true });
+  if (prerendered && currentPage() === 1) {
+    adoptPrerendered(currentQuery());
+  } else {
+    run(currentQuery(), currentPage(), { replace: true });
+  }
 }

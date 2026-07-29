@@ -30,8 +30,18 @@
 </div>
 
 {{/* Decision D2: real paginated results at the archive URL, found through the
-     search backend so paging is client-side and this stays one built page. */}}
-{{ partial "search-view.html" (dict "query" $query "pinned" true) }}
+     search backend so paging is client-side and this stays one built page.
+
+     The first page is rendered here from Hugo's own data rather than fetched.
+     `first N .Pages` is O(1) per term, so the common path — open a tag, read
+     the first page — never calls the search backend at all. Measured at 100k
+     notes, that path cost 8.5–9.7 s through Pagefind's filter query. */}}
+{{- $per := int (site.Params.pagination.search | default 6) -}}
+{{ partial "search-view.html" (dict
+     "query" $query
+     "pinned" true
+     "prerendered" (first $per .Pages)
+     "total" $count) }}
 
 {{- else }}
 

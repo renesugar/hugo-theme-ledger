@@ -35,7 +35,14 @@ export async function search(parsed, opts) {
 
   // A null term with filters is Pagefind's "everything matching these filters".
   var term = parsed.text ? parsed.text : null;
-  var response = await pagefind.search(term, { filters: filters });
+
+  // With no text there is no relevance to rank by, so order newest-first —
+  // matching how Hugo lists a term's pages, which lets a server-rendered first
+  // page and a searched second page belong to the same sequence.
+  var request = { filters: filters };
+  if (!term) request.sort = { date: 'desc' };
+
+  var response = await pagefind.search(term, request);
 
   var all = response.results || [];
   var total = all.length;

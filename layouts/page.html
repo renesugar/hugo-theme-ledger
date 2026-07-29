@@ -27,7 +27,14 @@
   <div data-pagefind-ignore hidden>
     <span data-pagefind-meta="title" data-pagefind-weight="10">{{ .Title }}</span>
     {{- with $summary }}<span data-pagefind-meta="summary">{{ . | plainify }}</span>{{ end }}
-    {{- with .Date }}<span data-pagefind-meta="date">{{ .Format "2006-01-02" }}</span>{{ end }}
+    {{- with .Date }}
+    <span data-pagefind-meta="date">{{ .Format "2006-01-02" }}</span>
+    {{- /* A sort key so a filter-only query can be ordered newest-first, which
+           is the order Hugo lists a term's pages in. Without it, a
+           server-rendered first page and a search-served second page would be
+           in different orders and could repeat or skip notes. */}}
+    <span data-pagefind-sort="date">{{ .Format "2006-01-02" }}</span>
+    {{- end }}
     {{- with $reading }}<span data-pagefind-meta="reading">{{ . }}</span>{{ end }}
     {{- with $category }}
     <span data-pagefind-filter="category">{{ . }}</span>

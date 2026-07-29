@@ -1,39 +1,64 @@
 {{- /* The in-page search results view. Context:
-         query    — initial query, may be empty
-         pinned   — true when the query comes from the page itself (an
-                    over-limit term archive) rather than from ?q=, so the
-                    controller leaves it out of the URL
+         query       — initial query, may be empty
+         pinned      — true when the query comes from the page itself (an
+                       over-limit term archive) rather than from ?q=, so the
+                       controller leaves it out of the URL
+         prerendered — optional Pages slice for the first page of results
+         total       — total matching notes, required with `prerendered`
 
        Results render into the content panel, replacing the list — never as an
        overlay. The empty state is server-rendered here and toggled, so the
-       designed markup and its suggestion chips are not duplicated in JS. */ -}}
+       designed markup and its suggestion chips are not duplicated in JS.
+
+       `prerendered` is the point of the over-limit archive: Hugo already knows
+       which notes carry the term, so the first page costs one template range
+       and the visitor sees results immediately. The search backend is only
+       consulted if they page past it or change the query. Rendering *only* the
+       first page keeps this O(1) per term — rendering all of them is the
+       blowup decision D2 exists to avoid. */ -}}
 
 {{- $query := .query | default "" -}}
+{{- $prerendered := .prerendered -}}
+{{- $total := int (.total | default 0) -}}
 {{- $p := site.Params -}}
+{{- $per := int ($p.pagination.search | default 6) -}}
+{{- $pages := 0 -}}
+{{- if $prerendered }}{{ $pages = math.Ceil (div (float $total) $per) }}{{ end -}}
 
 {{- $config := dict
       "backend"       ($p.search.backend | default "pagefind")
       "bundlePath"    ($p.search.bundlePath | default "/pagefind/pagefind.js")
       "endpoint"      ($p.search.endpoint | default "/api/search")
-      "perPage"       (int ($p.pagination.search | default 6))
+      "perPage"       $per
       "allNotesLabel" ($p.sidebar.allNotesLabel | default "All notes")
       "searchURL"     ("/search/" | relURL)
 -}}
 
 <div class="ledger-search" data-ledger-search
      data-initial-query="{{ $query }}"
-     {{ if .pinned }}data-pinned="true"{{ end }}>
+     {{ if .pinned }}data-pinned="true"{{ end }}
+     {{ if $prerendered }}data-prerendered="true" data-total="{{ $total }}"{{ end }}>
 
   <script type="application/json" data-ledger-search-config>{{ $config | jsonify | safeJS }}</script>
 
   {{ partial "search-bar.html" (dict "query" $query "count" nil) }}
 
-  <div class="ledger-meta" data-ledger-search-meta hidden>
-    <span class="ledger-meta-count" data-ledger-result-count role="status" aria-live="polite"></span>
-    <span class="ledger-meta-page" data-ledger-result-page></span>
+  <div class="ledger-meta" data-ledger-search-meta {{ if not $prerendered }}hidden{{ end }}>
+    <span class="ledger-meta-count" data-ledger-result-count role="status" aria-live="polite">
+      {{- if $prerendered }}
+        {{- lang.FormatNumber 0 $total }} {{ cond (eq $total 1) "result" "results" }} for {{ $query }}
+      {{- end -}}
+    </span>
+    <span class="ledger-meta-page" data-ledger-result-page>
+      {{- if and $prerendered (gt $pages 1) }}Page 1 of {{ lang.FormatNumber 0 $pages }}{{ end -}}
+    </span>
   </div>
 
-  <div class="ledger-results" data-ledger-search-results></div>
+  <div class="ledger-results" data-ledger-search-results>
+    {{- range $prerendered }}
+    {{ partial "result-card.html" . }}
+    {{- end }}
+  </div>
 
   <div data-ledger-search-pagination></div>
 
@@ -42,10 +67,17 @@
   </div>
 
   <noscript>
+    {{- if not $prerendered }}
     <p class="ledger-page-ceiling">
       Search needs JavaScript. Browse by
       <a href="{{ "/tags/" | relURL }}">tag</a> instead.
     </p>
+    {{- else if gt $pages 1 }}
+    <p class="ledger-page-ceiling">
+      Showing the {{ $per }} most recent of {{ lang.FormatNumber 0 $total }}.
+      Further pages need JavaScript.
+    </p>
+    {{- end }}
   </noscript>
 </div>
 

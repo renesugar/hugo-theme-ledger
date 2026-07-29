@@ -207,6 +207,11 @@ browsing is fast at 100k, hand-typed filter queries and deep paging are not.
 Also corrected the step 13 filter latencies, which were measured partially warm
 and understated the cold case.
 
-### 15. Docs
-`AGENTS.md`, full `README.md` (install, dev, config reference, search-backend
-swap, testing).
+### 15. Docs  ✅
+`AGENTS.md` — orientation for coding agents: the scale invariants that are
+invisible from any single file, the search adapter contract, and the traps
+already hit in this repo.
+
+`README.md` — install, required config, content model, full `[params]`
+reference, both search backends and how to choose, development and
+benchmarking, accessibility.

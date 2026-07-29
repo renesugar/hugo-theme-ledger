@@ -41,6 +41,14 @@
 {{- if hugo.IsProduction }}{{ $css = $css | minify | fingerprint }}{{ end }}
 <link rel="stylesheet" href="{{ $css.RelPermalink }}"{{ with $css.Data.Integrity }} integrity="{{ . }}"{{ end }}>
 
+{{- /* Site-supplied stylesheets, loaded after the theme's so they can override
+       tokens. These are URLs (usually under static/), not pipeline assets: a
+       generator writing a site does not want to depend on Hugo's asset
+       pipeline. Absolute URLs are passed through untouched. */}}
+{{- range site.Params.extraCSS }}
+<link rel="stylesheet" href="{{ if hasPrefix . "http" }}{{ . }}{{ else }}{{ . | relURL }}{{ end }}">
+{{- end }}
+
 {{- with .OutputFormats.Get "rss" }}
 <link rel="alternate" type="application/rss+xml" href="{{ .Permalink }}" title="{{ site.Title }}">
 {{- end }}

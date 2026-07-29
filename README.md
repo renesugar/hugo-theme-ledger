@@ -5,8 +5,8 @@ a resizable sidebar of paginated categories and tags, and a content panel.
 Search is the primary way in — taxonomy terms above a configurable size stop
 behaving like lists and start behaving like queries.
 
-Built to stay fast on large sites. Measured at 100,000 notes; see
-[PERFORMANCE.md](PERFORMANCE.md).
+Built to stay fast on large sites. Measured at 10k, 100k and 500,000 notes;
+see [PERFORMANCE.md](PERFORMANCE.md).
 
 - Three themes — light, dark, high contrast — applied before first paint
 - Pagefind search rendered **in the page**, not in a popup
@@ -238,6 +238,7 @@ and every hero-image source are exercised on an ordinary build.
 
 ```bash
 scripts/bench.sh 10000 100000     # appends to bench/out/results.tsv
+                                  # 500000 takes ~2¼ hours and ~21 GB
 ```
 
 `scripts/gen-corpus.js` writes a synthetic corpus with Zipf-distributed words

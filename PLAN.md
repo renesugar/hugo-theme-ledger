@@ -180,12 +180,16 @@ that cleared AA on `--panel` alone was not enough.
 `bluge.js` against the documented JSON contract, plus a reference Go server
 sketch and swap instructions.
 
-### 13. Scale test harness  ✅ (500k tier outstanding)
+### 13. Scale test harness  ✅
 `scripts/gen-corpus.js`, `scripts/bench.sh`, `scripts/query-latency.js`.
 Results in `PERFORMANCE.md`.
 
-10k and 100k are measured. **500k has not been run** — extrapolating the
-measured O(n^1.17) build exponent puts it near 30 minutes and 12 GB peak RSS.
+All three tiers measured: 10k, 100k and 500k. The 500k build takes 80 minutes
+and 13.2 GB peak RSS — the earlier extrapolation from the 10k→100k exponent
+predicted 30 minutes and was wrong, because the exponent itself worsens with
+size (~1.11 then ~1.72). Every structural guarantee holds at 500k: a note page
+is still 20 KB with 5,000 tags in play, and 4,816 of those tags emit no pager
+at all.
 
 The headline finding changes the theme's guidance rather than its code: the
 build scales fine to 100k, but Pagefind's filter path costs 8–10 s there, and

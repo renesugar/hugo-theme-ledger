@@ -3,7 +3,8 @@
 The theme targets sites with 100k+ pages. This records what was actually
 measured, on what, and which design decisions the numbers justify.
 
-**Headline: the build scales fine to 100k. Pagefind's filter queries do not —
+**Headline: the build scales to 500k, though not cheaply — 80 minutes and
+13 GB. Pagefind's filter queries do not —
 but the paths visitors actually take no longer use them.** Opening a category or
 tag is server-rendered and instant at any size. Deep paging and hand-typed
 `category:`/`tag:` queries stay slow, so a search-led site past ~25k notes wants
@@ -12,7 +13,7 @@ the Bluge backend — which is what the swappable search interface exists for.
 ## Method
 
 ```bash
-scripts/bench.sh 10000 100000
+scripts/bench.sh 10000 100000 500000
 ```
 
 `scripts/gen-corpus.js` writes a synthetic corpus; `scripts/bench.sh` builds it,
@@ -49,21 +50,35 @@ transfers.
 | notes | build | peak RSS | public | HTML files | home page | note page |
 |---|---|---|---|---|---|---|
 | 10,000 | 23.7 s | 668 MB | 384 MB | 12,294 | 23 KB | 20 KB |
-| 100,000 | 349.7 s | 3.6 GB | 3.7 GB | 118,256 | 22 KB | 20 KB |
+| 100,000 | 304.7 s | 3.7 GB | 3.7 GB | 118,256 | 22 KB | 20 KB |
+| 500,000 | **4,819.5 s** (80 min) | **13.2 GB** | 18.0 GB | 589,904 | 23 KB | 20 KB |
 
-Build time grew 14.8× for 10× the notes — roughly O(n^1.17). Mildly
-superlinear, and nothing like the O(n²) signature of a per-page partial
-filtering `site.RegularPages`. Peak RSS grew only 5.3×.
+**Build time is superlinear, and the exponent worsens with size.** 10k → 100k
+grew 12.8×, an exponent of ~1.11. 100k → 500k grew 15.8× for 5× the notes — an
+exponent of ~1.72. An earlier revision of this file extrapolated the first
+exponent and predicted ~30 minutes for 500k; the real figure is 80. Do not
+extrapolate past a tier you have measured.
 
-Extrapolating the same exponent, 500k notes is around 30 minutes and 12 GB.
-That tier has not been run.
+This is still not the O(n²) signature of a per-page partial filtering
+`site.RegularPages` — that would have been ~25× — but it does mean a 500k build
+is a coffee break, not a pause. Corpus generation alone took another 3 minutes.
+
+Everything else scales cleanly:
+
+| | 100k → 500k | exponent |
+|---|---|---|
+| peak RSS | 3.6× | 0.80 (sublinear) |
+| Pagefind index time | 5.4× | 1.04 (linear) |
+| output size | 5.0× | 1.00 (linear) |
+| HTML files | 5.0× | 1.00 (linear) |
 
 ## Indexing
 
 | notes | Pagefind time | Pagefind index | Bluge time | Bluge index |
 |---|---|---|---|---|
 | 10,000 | 56 s | 47 MB | — | — |
-| 100,000 | 605 s | 451 MB | 116 s | 111 MB |
+| 100,000 | 547 s | 452 MB | 116 s | 111 MB |
+| 500,000 | 2,938 s (49 min) | 2.2 GB | — | — |
 
 Pagefind indexing is ~5× slower than Bluge and produces a ~4× larger index on
 this corpus.
@@ -215,10 +230,16 @@ by page count. A note page measured **20 KB at both tiers** while tag count went
 - 16 term rows inlined per page, regardless of the 1,000 tags that exist
 - the shared terms asset is capped at 200 entries (22 KB)
 
-**Generated page count must stay bounded.** At 100k notes:
+**Generated page count must stay bounded.** Re-verified at **500k notes**, with
+5,000 tags — 50× the tag count of the 10k tier:
 
+- a note page is **20 KB**, the same as at 10k and 100k
+- the sidebar is byte-identical between `/` and `/notes/note-499999/`
+- 16 term rows inlined per page; the shared terms asset holds 200 entries
+  (21.9 KB) regardless of the 5,000 tags that exist
 - home generated exactly **500** pager pages — the `maxHomePagerPages` cap.
-  Uncapped that would have been 16,667.
-- over-limit tags emit `index.html` and **no `page/` directory** — decision D2
-  keeping a 3,455-note term from paginating
-- under-limit tags do get pagers, so the split is working in both directions
+  Uncapped that would have been 83,333.
+- **4,816 of 5,000 tags are over limit and emit no `page/` directory at all**;
+  only the 184 under-limit tags paginate. That is decision D2 doing the single
+  largest piece of work in the build — without it those 4,816 terms would each
+  have paginated their whole membership.

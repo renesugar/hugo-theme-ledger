@@ -149,7 +149,8 @@ All under `[params]`. Every value shown is the default.
     heroPlaceholder = true      # striped stand-in when a note has no `image`
 
   [params.search]
-    backend = "pagefind"        # pagefind | bluge | auto | orama
+    backend = "pagefind"        # pagefind | bluge | auto | orama | flexsearch
+    flexsearchStorage = "memory"    # flexsearch only: memory | indexeddb
     bundlePath = "/pagefind/pagefind.js"
     endpoint = "/api/search"        # bluge only
     healthEndpoint = "/api/health"  # auto only
@@ -284,6 +285,27 @@ few thousand notes that is a few megabytes and a fine trade; at 25,000 it is
 disqualifying, and [PERFORMANCE.md](PERFORMANCE.md) has the measurements. Add
 `--fields summary` to index titles and summaries only, at the cost of most
 free-text matches.
+
+### `flexsearch`
+
+`backend = "flexsearch"` searches a [FlexSearch](https://github.com/nextapps-de/flexsearch)
+index in the browser, built after Hugo from the same JSONL:
+
+```bash
+node scripts/build-flexsearch-index.js \
+  --source public/search-source.jsonl --out public/flexsearch
+```
+
+`flexsearchStorage = "indexeddb"` keeps the index in IndexedDB instead of memory:
+repeat visits download nothing and the JS heap stays under 20 MB, at the cost of
+slower queries and no improvement to time-to-first-result.
+
+**Also a small-site option, and it covers less of the grammar than the others.**
+FlexSearch has no count API, no numeric range filter and no phrase operator, so the
+adapter materialises whole match sets, applies date bounds after searching (reported
+as approximate), intersects repeated tags itself, and reports phrases unsupported.
+At 25,000 notes its index is 74 MB without bodies or 343 MB with them; see
+[PERFORMANCE.md](PERFORMANCE.md).
 
 ### `auto`
 

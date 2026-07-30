@@ -408,3 +408,40 @@ Three things worth keeping from the attempt:
 The adapter stays in the theme, registered and documented as a small-site option:
 at a few thousand notes its index is a few megabytes, and it answers the
 `since:`/`until:` bounds Pagefind cannot express at all.
+
+### 21. The FlexSearch backend — measured in both configurations, not promoted  ✅
+`backends/flexsearch.js` with `memory` and `indexeddb` storage,
+`scripts/build-flexsearch-index.js`, and the full metric set at 25,000 notes.
+
+The persistent configuration was the only shape in this comparison that could
+plausibly avoid loading everything, and it half-succeeds: **repeat visits download
+nothing and the JS heap drops to 4–16 MB**, the lowest of any backend measured.
+But the first visit still transfers the whole index — a browser cannot be shipped a
+prepopulated IndexedDB — and time-to-first-result stays at ~15 s on later visits,
+because reading 40 MB back out of IndexedDB is not free. Queries also get *slower*
+than in memory: 1,313 ms against 109 ms for the same query.
+
+| | index at 25k | first result | bytes | heap |
+|---|---|---|---|---|
+| memory, title+body | 342.7 MB | — | 342.7 MB | — |
+| memory, title+summary | 74.4 MB | 13.1 s | 74.5 MB | 133 MB |
+| indexeddb, first visit | 74.4 MB | 24.3 s | 74.5 MB | 4 MB |
+| indexeddb, second visit | — | 14.8 s | **136 KB** | 16 MB |
+| *Pagefind* | 114 MB | ~1 s | **0.37 MB** | 6–31 MB |
+
+It also covers less of the grammar than any other backend: no count API (so whole
+match sets are materialised, which is where the 1,313 ms goes), no numeric range
+filter (dates applied after searching, reported approximate), tag clauses ORed
+rather than ANDed (intersected in the adapter), and no phrase operator.
+
+Two traps recorded in `PERFORMANCE.md`, both of which silently cost everything:
+detecting an already-populated IndexedDB needs a tag search for a value the builder
+records as present — an empty tag filter matches nothing whether populated or not,
+and `db.has()` throws on a mounted-but-unqueried store, so either mistake
+re-downloads the full index on every visit while appearing to work. And the library
+must be loaded from a runtime URL, never imported statically, or it lands in the
+shared search bundle for every site.
+
+Both client-side engines are kept, registered and documented as small-site options.
+The shared search bundle is 13.4 KB with both adapters present, against 8.9 KB with
+neither.

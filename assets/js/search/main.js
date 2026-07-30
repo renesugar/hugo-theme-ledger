@@ -10,8 +10,12 @@ import * as pagefind from './backends/pagefind.js';
 import * as bluge from './backends/bluge.js';
 import * as auto from './backends/auto.js';
 import * as orama from './backends/orama.js';
+import * as flexsearch from './backends/flexsearch.js';
 
-var BACKENDS = { pagefind: pagefind, bluge: bluge, auto: auto, orama: orama };
+var BACKENDS = {
+  pagefind: pagefind, bluge: bluge, auto: auto,
+  orama: orama, flexsearch: flexsearch,
+};
 
 var root = document.querySelector('[data-ledger-search]');
 if (root) init(root);

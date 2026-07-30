@@ -101,6 +101,13 @@ was not promoted. **Its library is built as its own asset and imported from a
 runtime URL**, not imported statically: a static import inlines Orama into the
 shared search bundle, 8.9 KB → 88.2 KB, for every site including Pagefind ones.
 
+`flexsearch.js` is the other measured-and-rejected client-side engine, with a
+`memory` and an `indexeddb` configuration. Same runtime-URL rule as Orama. Its
+IndexedDB path needs a population probe that is a **tag search for a value
+`meta.json` records as present** — an empty tag filter matches nothing whether or
+not the index is populated, and `db.has()` throws on a mounted-but-unqueried store,
+so both of those silently re-download the whole index on every visit.
+
 `auto.js` is not a third engine: it probes `/api/health` once per page load and
 then delegates every call to `bluge.js` or `pagefind.js`. A build using it needs
 both indexes. Its one piece of real behaviour is the one-way downgrade when a

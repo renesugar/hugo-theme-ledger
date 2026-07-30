@@ -44,8 +44,20 @@
   {{- $oramaRuntime = $built.RelPermalink -}}
 {{- end -}}
 
+{{- $flexRuntime := "" -}}
+{{- if eq ($p.search.backend | default "pagefind") "flexsearch" -}}
+  {{- $built := resources.Get "js/search/flexsearch-runtime.js" | js.Build (dict
+        "targetPath" "js/ledger-flexsearch.js"
+        "format" "esm"
+        "minify" hugo.IsProduction) -}}
+  {{- if hugo.IsProduction }}{{ $built = $built | fingerprint }}{{ end -}}
+  {{- $flexRuntime = $built.RelPermalink -}}
+{{- end -}}
+
 {{- $config := dict
-      "oramaRuntime"   $oramaRuntime
+      "oramaRuntime"        $oramaRuntime
+      "flexsearchRuntime"   $flexRuntime
+      "flexsearchStorage"   ($p.search.flexsearchStorage | default "memory")
       "backend"        ($p.search.backend | default "pagefind")
       "bundlePath"     (partial "site-url.html" ($p.search.bundlePath | default "/pagefind/pagefind.js"))
       "endpoint"       (partial "site-url.html" ($p.search.endpoint | default "/api/search"))

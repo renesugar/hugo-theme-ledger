@@ -335,6 +335,108 @@ phrase operator, so the adapter reports quoted phrases as unsupported.
 The adapter is left in the theme, registered and documented, for that case. It is
 not a candidate for a 100k-note archive, which is what this theme is for.
 
+## FlexSearch — refuted at 25k, in both configurations
+
+FlexSearch 0.8.212, same 25,000-note corpus, same JSONL. Adapter in
+`assets/js/search/backends/flexsearch.js`, index built by
+`scripts/build-flexsearch-index.js`. Two configurations were measured, because the
+persistent one was the only shape in this comparison that could plausibly avoid
+loading everything.
+
+### Index size
+
+| index | 25k notes | chunks |
+|---|---|---|
+| title + body | **342.7 MB** | 5 (the body map alone is 319 MB) |
+| title + summary | **74.4 MB** | 5 |
+| *Pagefind, for comparison* | 114 MB on disk, **0.37 MB fetched** | — |
+
+FlexSearch's full-text index is larger than Orama's 223 MB and three times
+Pagefind's. Everything below uses the 74.4 MB summary-only index — the smaller,
+more favourable case.
+
+### `flexsearchStorage = "memory"` — fetch and import
+
+| | |
+|---|---|
+| bytes before first result | **74.5 MB** |
+| time to first result, cold | **13.1 s** |
+| JS heap after loading | 133 MB |
+| warm, 8,924 matches | 109 ms |
+| warm, 214 matches | 46 ms |
+| warm, 7 matches | 17 ms |
+
+### `flexsearchStorage = "indexeddb"` — mount and persist
+
+| | first visit | second visit |
+|---|---|---|
+| bytes served | **74.5 MB** | **136 KB** (0 from the index) |
+| time to first result | **24.3 s** | **14.8 s** |
+| JS heap | 4 MB | 16 MB |
+| IndexedDB usage | 40 MB | 40 MB |
+| warm, 8,924 matches | — | 1,313 ms |
+| warm, 214 matches | — | 138 ms |
+| warm, 7 matches | — | 383 ms |
+
+**The persistent configuration does exactly what it promises, and it is still not
+enough.** Repeat visits download nothing, and the JS heap drops to 4–16 MB — the
+lowest of any backend measured, Pagefind included. But:
+
+- The **first** visit still transfers the whole index. A browser cannot be shipped
+  a prepopulated IndexedDB, so the data has to arrive over the wire once whatever
+  the storage.
+- **Time to first result does not improve.** 14.8 s on a repeat visit, because
+  reading 40 MB back out of IndexedDB is not free. Pagefind answers in about a
+  second, every visit, with no local storage at all.
+- **Queries get slower, not faster**: 1,313 ms for the query the in-memory
+  configuration answered in 109 ms, because every query now goes through
+  IndexedDB.
+
+So the trade is: 74 MB once, then 15 s per page load and about a second per broad
+query — against Pagefind's 369 KB and ~1 s on every visit with nothing stored.
+
+### Against the promotion rule
+
+| criterion | memory | indexeddb |
+|---|---|---|
+| cold time to first result ≤ Pagefind | ❌ 13.1 s | ❌ 24.3 s, then 14.8 s |
+| first-result download within ~1.5× | ❌ 200× (930× full-text) | ❌ same |
+| warm filter query < 500 ms | ✅ 17–109 ms | ❌ 1,313 ms broad |
+| peak heap < ~500 MB | ✅ 133 MB | ✅ **4–16 MB** |
+
+**Not promoted**, in either configuration.
+
+### Grammar gaps, and what they cost
+
+FlexSearch needed more adapter work than Orama, and still covers less:
+
+- **No count API.** It returns results, not totals, so the adapter materialises the
+  whole match set (`limit: 100000`) to know how many there are and to page. That is
+  where the 1,313 ms goes on a broad query.
+- **Repeated `tag:` clauses are ORed**, not ANDed; the adapter intersects them
+  itself, from the stored documents.
+- **No numeric range filter**, so `since:`/`until:` are applied after searching and
+  reported as approximate. A date-only query returns nothing, because there is no
+  term or tag to search on first.
+- **No phrase operator.** Reported unsupported.
+
+Compare Pagefind, which does phrases natively and needs none of that.
+
+### Two implementation traps worth recording
+
+- **Detecting an already-populated IndexedDB is not obvious, and getting it wrong
+  silently costs everything.** The first attempt probed with an empty tag filter,
+  which matches nothing whether or not the index is populated, so every visit
+  re-imported the full 74.5 MB — the storage bought nothing while appearing to
+  work. `db.has(id)` is not usable either: it throws on a store that has been
+  mounted but not yet queried. What works is a tag search for a value the builder
+  records in `meta.json` as known-present; a mounted index answers it from storage
+  with no import at all.
+- **The library must not be imported statically.** Same as Orama: a static import
+  inlines it into the shared search bundle for every site. Both adapters load their
+  runtime from a URL the template builds, and only when a site selects them. With
+  both registered the shared bundle is 13.4 KB, against 8.9 KB with neither.
+
 ## Attempts to make Pagefind viable at this scale
 
 Five hypotheses were tested against the 100k corpus. One worked.
@@ -417,8 +519,16 @@ interaction you are doing, not just how large the site is.
 
 So the honest recommendation:
 
+Two client-side engines were built and measured against this baseline and both
+were rejected; see the Orama and FlexSearch sections above. The short version:
+every in-browser index has to cross the wire at least once, and at 25,000 notes
+that is 33–343 MB against Pagefind's 0.37 MB for a free-text query. FlexSearch over
+IndexedDB removes the *repeat* download and drops the heap to 4–16 MB, but leaves
+time-to-first-result at ~15 s and makes queries slower.
+
 | corpus | backend |
 |---|---|
+| up to a few thousand notes | Pagefind, or Orama if `since:`/`until:` matter |
 | up to ~25k notes | Pagefind — everything is comfortable |
 | 25k–100k, browsing-led | Pagefind is usable, because the paths people actually take are server-rendered — but deep paging and hand-typed filter queries are slow |
 | beyond ~25k with search-led use, or any size where filter queries must be fast | Bluge — see `search-server/README.md` |

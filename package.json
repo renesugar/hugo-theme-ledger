@@ -12,6 +12,8 @@
     "preview": "npm run build:indexed && npx --yes serve exampleSite/public"
   },
   "devDependencies": {
+    "@orama/orama": "^3.1.18",
+    "@orama/plugin-data-persistence": "^3.1.18",
     "pagefind": "^1.5.0"
   }
 }

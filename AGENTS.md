@@ -95,6 +95,12 @@ Add one beside `pagefind.js`/`bluge.js`, register it in the `BACKENDS` map in
 `main.js`, select it with `params.search.backend`. Do not re-parse the grammar
 in a backend.
 
+`orama.js` searches an in-memory index and is for small sites only — 33–223 MB
+downloaded before the first result at 25k notes. `PERFORMANCE.md` records why it
+was not promoted. **Its library is built as its own asset and imported from a
+runtime URL**, not imported statically: a static import inlines Orama into the
+shared search bundle, 8.9 KB → 88.2 KB, for every site including Pagefind ones.
+
 `auto.js` is not a third engine: it probes `/api/health` once per page load and
 then delegates every call to `bluge.js` or `pagefind.js`. A build using it needs
 both indexes. Its one piece of real behaviour is the one-way downgrade when a

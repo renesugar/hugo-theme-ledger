@@ -257,6 +257,84 @@ match. Paging is flat; broadening the query is not.
 **Bluge is 100–1000× faster on filters and stays flat**, including at page 1,000
 of a large result set, because paging happens server-side.
 
+## Orama — refuted at 25k
+
+`@orama/orama` 3.1.18, measured on the same 25,000-note corpus as the Pagefind
+baseline above, indexed from the same JSONL so the documents are identical and
+only the engine differs. Adapter in `assets/js/search/backends/orama.js`, index
+built by `scripts/build-orama-index.js`.
+
+Orama is an in-memory engine: the whole index is fetched, deserialized and held
+in the browser. The question was whether paying bytes up front buys enough query
+speed to be worth it.
+
+| | Pagefind | Orama, full text | Orama, titles+summaries |
+|---|---|---|---|
+| index on disk | 114 MB | 223 MB | 33 MB |
+| **bytes before the first result** | **0.37 MB** free text, 13.6 MB filtered | **223 MB** | **33.4 MB** |
+| time to first result, cold | ~1 s free text, 6.3 s filtered | **18.9 s** | **11.2 s** |
+| JS heap after loading | 6–31 MB | 364 MB | 82 MB |
+| warm, 497 matches | 223 ms | 102 ms | 19 ms |
+| warm, 8,924 matches | 6,006 ms | — | **35 ms** |
+| free text finds | title, summary, body | title, summary, body | **title and summary only** |
+
+**Orama's queries are magnificent and its loading is disqualifying.** Warm, it
+answers a filter over 8,924 of 25,000 notes in 35 ms where Pagefind takes 6
+seconds — 170× faster. But every visitor pays 33–223 MB and 11–19 seconds before
+the first result, against Pagefind's 369 KB and about a second.
+
+Against the promotion rule fixed before any of this was measured:
+
+| criterion | result |
+|---|---|
+| cold time to first result no worse than Pagefind | ❌ 11.2–18.9 s vs ~1 s |
+| first-result download within ~1.5× Pagefind's | ❌ 90× (summary) to 600× (full) |
+| warm filter query under 500 ms | ✅ 19–102 ms |
+| peak heap under ~500 MB | ✅ 82 MB / 364 MB — but on a desktop with a 4 GB heap |
+
+Two of four fail, and they are the two the rule exists for. **Not promoted.**
+
+Things that were tried before concluding that, so they are not retried:
+
+- **Dropping body text from the index** is Orama's only real lever, and it works
+  as arithmetic: 223 MB → 33 MB. But it changes what search means. The free-text
+  query `baridck` returns 2,327 notes with bodies indexed and **214** without —
+  91% of the matches are gone. That is the same trade Pagefind hypothesis 5
+  rejected, for the same reason.
+- **A more compact serialization.** `persist(db, 'binary')` produced a *larger*
+  payload than JSON on this data, and `'dpack'` throws
+  `"length" is outside of buffer bounds` in 3.1.18. JSON is the best format
+  available.
+- **Keeping the library out of the shared bundle.** A static
+  `import '@orama/orama'` in the adapter made esbuild inline it, taking the search
+  bundle from **8.9 KB to 88.2 KB for every site** — including Pagefind sites that
+  never call Orama. It is built as its own asset and imported from a runtime URL,
+  the way `pagefind.js` loads the Pagefind bundle, and only when a site selects
+  the backend. The bundle is 10.6 KB with the adapter registered.
+
+### 100k and 200k were not measured
+
+Deliberately. The index is linear in corpus size, so 200k projects to **~1.8 GB**
+full-text or ~267 MB summary-only, and the Node builder needed 1.8 GB of RSS for
+25k — about 14 GB at 200k. A browser cannot download 1.8 GB to answer a query, and
+the 25k result already fails the promotion rule by two orders of magnitude on the
+criterion that scales *against* Orama. Measuring the larger tiers would cost about
+an hour and could not change the decision.
+
+That projection is arithmetic, not measurement, and is labelled as such. What was
+measured is the 25k row above.
+
+### What Orama would be good for
+
+Not nothing: a site of a few thousand notes, where a 3–8 MB index is an
+acceptable one-time cost, would get sub-30 ms queries — including the date bounds
+Pagefind cannot express at all. The two engines have complementary gaps: Pagefind
+does phrases natively but not `since:`/`until:`, Orama does date ranges but has no
+phrase operator, so the adapter reports quoted phrases as unsupported.
+
+The adapter is left in the theme, registered and documented, for that case. It is
+not a candidate for a 100k-note archive, which is what this theme is for.
+
 ## Attempts to make Pagefind viable at this scale
 
 Five hypotheses were tested against the 100k corpus. One worked.

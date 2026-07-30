@@ -9,8 +9,10 @@
        Fields mirror the adapter contract in assets/js/search/backends/bluge.js,
        plus `body` for full-text matching. */ -}}
 {{- $backend := site.Params.search.backend | default "pagefind" -}}
-{{- if not (in (slice "bluge" "auto") $backend) -}}
-{{- warnf "layouts/home.ledgersearch.jsonl rendered while params.search.backend is %q — this JSONL is only consumed by the bluge backend, which auto may also select." $backend -}}
+{{- /* orama's index builder reads this same JSONL, so its documents are
+       identical to Bluge's and any difference in results is the engine. */ -}}
+{{- if not (in (slice "bluge" "auto" "orama") $backend) -}}
+{{- warnf "layouts/home.ledgersearch.jsonl rendered while params.search.backend is %q — this JSONL is only consumed by the bluge and orama backends, which auto may also select." $backend -}}
 {{- end -}}
 {{- $sections := site.Params.mainSections | default (slice "notes") -}}
 {{- range $sections -}}

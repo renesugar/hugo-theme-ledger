@@ -149,7 +149,7 @@ All under `[params]`. Every value shown is the default.
     heroPlaceholder = true      # striped stand-in when a note has no `image`
 
   [params.search]
-    backend = "pagefind"        # pagefind | bluge | auto
+    backend = "pagefind"        # pagefind | bluge | auto | orama
     bundlePath = "/pagefind/pagefind.js"
     endpoint = "/api/search"        # bluge only
     healthEndpoint = "/api/health"  # auto only
@@ -261,6 +261,29 @@ shows up in search itself:
 
 Up to ~25k notes, Pagefind is comfortable. Past that, stay on Pagefind if people
 mostly browse, and move to Bluge if they mostly search.
+
+### `orama`
+
+`backend = "orama"` searches an [Orama](https://docs.orama.com/) index held in
+memory in the browser. Build it after Hugo, from the same JSONL the Bluge backend
+uses:
+
+```bash
+hugo   # with the ledgersearch output enabled — see search-server/README.md
+node scripts/build-orama-index.js \
+  --source public/search-source.jsonl --out public/orama
+```
+
+Queries are very fast — tens of milliseconds, including filters that take Pagefind
+seconds — and it answers `since:`/`until:`, which Pagefind cannot. It has no
+phrase operator, so quoted phrases are reported unsupported.
+
+**Use it only on small sites.** The whole index is downloaded before the first
+result: 33 MB titles-and-summaries, or 223 MB with bodies, for 25,000 notes. At a
+few thousand notes that is a few megabytes and a fine trade; at 25,000 it is
+disqualifying, and [PERFORMANCE.md](PERFORMANCE.md) has the measurements. Add
+`--fields summary` to index titles and summaries only, at the cost of most
+free-text matches.
 
 ### `auto`
 

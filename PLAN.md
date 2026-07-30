@@ -374,3 +374,37 @@ and paging stays flat at 2 ms.
 that cap and silently emitted a pager directory per six notes, ~83,000 of them at
 500k — plus `home_pagers`, `section_pagers` and `term_dirs` columns so the caps
 are visible in the data rather than inferred from a total.
+
+### 20. The Orama backend — measured, and not promoted  ✅
+`backends/orama.js` behind the same adapter contract, `scripts/build-orama-index.js`
+reading the same JSONL Bluge indexes, and the full metric set at 25,000 notes.
+
+**Refuted on the criterion that scales against it.** Orama holds its whole index in
+memory, so a visitor downloads 223 MB (full text) or 33 MB (titles and summaries)
+and waits 11–19 s before the first result, against Pagefind's 369 KB and about a
+second. Warm queries are then extraordinary — 35 ms for a filter over 8,924 notes
+where Pagefind takes 6,006 ms — but that is the wrong half of the trade for a
+100k-note archive. Two of the promotion rule's four criteria fail, and they are the
+two the rule exists for.
+
+100k and 200k were deliberately not measured: the index is linear, so 200k projects
+to ~1.8 GB, and no measurement of it could change the decision. The projection is
+labelled as arithmetic in `PERFORMANCE.md`.
+
+Three things worth keeping from the attempt:
+
+- **A static `import '@orama/orama'` in the adapter inlines the library into the
+  shared search bundle** — 8.9 KB to 88.2 KB, paid by every site including the
+  Pagefind ones. It is built as its own asset and imported from a runtime URL, the
+  way `pagefind.js` loads its bundle, and only when a site selects the backend.
+- **`@orama/plugin-data-persistence` cannot be bundled for a browser**: its entry
+  point pulls in Node's `stream`. Orama's own `load()` accepts exactly what the
+  plugin's `persist` writes, so the browser needs neither.
+- **A persisted Orama database does not carry its schema**, and `create()` needs
+  one before `load()`. The builder writes it into `meta.json` rather than letting
+  the adapter guess, which would have silently mis-typed fields whenever the index
+  was built with `--fields summary`.
+
+The adapter stays in the theme, registered and documented as a small-site option:
+at a few thousand notes its index is a few megabytes, and it answers the
+`since:`/`until:` bounds Pagefind cannot express at all.

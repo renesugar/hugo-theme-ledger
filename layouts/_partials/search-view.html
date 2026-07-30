@@ -31,7 +31,21 @@
        absolute URL is passed through, which is how a Bluge server on another
        host is configured. `siteRoot` is what backends resolve stored result URLs
        against. */ -}}
+{{- /* Orama's library is bundled separately and only when a site actually uses
+       it: importing it from the adapter would inline it into the shared search
+       bundle for every site, Pagefind ones included. */ -}}
+{{- $oramaRuntime := "" -}}
+{{- if eq ($p.search.backend | default "pagefind") "orama" -}}
+  {{- $built := resources.Get "js/search/orama-runtime.js" | js.Build (dict
+        "targetPath" "js/ledger-orama.js"
+        "format" "esm"
+        "minify" hugo.IsProduction) -}}
+  {{- if hugo.IsProduction }}{{ $built = $built | fingerprint }}{{ end -}}
+  {{- $oramaRuntime = $built.RelPermalink -}}
+{{- end -}}
+
 {{- $config := dict
+      "oramaRuntime"   $oramaRuntime
       "backend"        ($p.search.backend | default "pagefind")
       "bundlePath"     (partial "site-url.html" ($p.search.bundlePath | default "/pagefind/pagefind.js"))
       "endpoint"       (partial "site-url.html" ($p.search.endpoint | default "/api/search"))

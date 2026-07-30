@@ -208,11 +208,19 @@ change all three, and check the sequences still match.
 ## Building and testing
 
 ```bash
+npm test                 # node --test over assets/js/**/*.test.js
 npm run build            # hugo, no search index
 npm run preview          # hugo + pagefind + static serve — use this for search
 npm run dev              # hugo server; SEARCH DOES NOT WORK (no index)
 scripts/bench.sh 10000   # scale tier; appends to bench/out/results.tsv
 ```
+
+**The query grammar has tests; use them.** `assets/js/search/query.js` is the
+one piece of pure logic every backend depends on, and no build step exercises
+it — Hugo will happily ship a parser that reads `cat OR dog` as three ANDed
+words. `query.test.js` pins the operator-free shapes against the flat fields the
+adapters read, so a grammar change that alters an ordinary query fails there
+rather than in someone's archive.
 
 **A change is not verified until it has been driven in a browser.** Markup that
 looks right has been wrong several times in this repo's history — the pagination

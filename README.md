@@ -235,6 +235,13 @@ no date range, so a `since:`/`until:` query there returns the unbounded set and
 the results view says which clauses were ignored. Bluge implements the whole
 grammar.
 
+**A link is searchable by its destination**, on both backends and whether the
+note shows the URL or hides it behind a label. `page.html` collects the external
+URLs out of each note into a hidden block that Pagefind indexes; typing a whole
+URL, a prefix of one, or its components — `globalnews.ca news` — all find the
+notes that link it. Internal links are left out: the note they point at is
+indexed as itself.
+
 Values with spaces have to be quoted, so the theme generates every clause it
 puts in a link through `layouts/_partials/search-clause.html`, which quotes only
 when needed. If you generate a query yourself, use that partial.

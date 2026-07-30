@@ -150,6 +150,32 @@ which is what keeps the shared header/sidebar/footer out of every excerpt and
 keeps `about.md` and `search.md` out of the index. Adding that attribute to
 another layout changes what the whole site indexes.
 
+**Anything inside it that is not note text needs `data-pagefind-ignore`.** The
+back link and the hero placeholder are inside the article, and without the
+attribute Pagefind indexed "← back to results" and "hero image · 1600×640" once
+per note and put them at the front of result excerpts. Whatever is added to
+`page.html` inside the article, decide which side of that line it is on.
+
+**Link destinations are indexed from a block at the end of the note.**
+`page.html` collects the external URLs in `.Content` into a hidden
+`<p class="ledger-link-index">`, because Pagefind indexes visible text and
+`[label](https://host/path)` puts the URL only in the `href` — most links, in a
+link-heavy archive. Two things about the shape are deliberate and easy to undo
+by accident:
+
+- **At the end, not on the links.** `data-pagefind-index-attrs="href"` on each
+  anchor indexes the same text and was tried first, but Pagefind draws excerpts
+  in document order, so inline URLs splice themselves between sentences and a
+  plain prose search returns an excerpt full of links. Collected at the end they
+  are excerpted only when a URL is what matched.
+- **`hidden`, not `ledger-sr-only`.** Pagefind indexes hidden elements, and a
+  screen reader should not read out a wall of URLs.
+
+External destinations only, matching `_link_target_url()` in movenotes'
+`obsidian2site.py`; the two backends have to agree on what a searchable link is.
+Costs 17% of the Pagefind index and 1.2% of the published site — measured in
+`PERFORMANCE.md`.
+
 **Every query returns newest first.** Not a ranking preference — an invariant
 three things depend on:
 

@@ -58,8 +58,12 @@
   {{- end }}
 
   {{/* Falls back to home when there is no same-origin referrer to return to;
-       the script upgrades it to a real history step when there is one. */}}
-  <a class="ledger-post-back" href="{{ site.Home.RelPermalink }}" data-ledger-back>&larr; back to results</a>
+       the script upgrades it to a real history step when there is one.
+
+       data-pagefind-ignore because it is furniture, not content: without it
+       "← back to results" is indexed on every note and turns up at the front of
+       result excerpts. */}}
+  <a class="ledger-post-back" href="{{ site.Home.RelPermalink }}" data-ledger-back data-pagefind-ignore>&larr; back to results</a>
 
   <header class="ledger-post-head">
     {{- if not $hideMeta }}
@@ -102,8 +106,11 @@
   {{- /* Not `| default true`: Hugo's `default` treats false as absent, and the
          only reason to set this param is to set it to false. */ -}}
   {{- $placeholder := ne ((site.Params.post | default dict).heroPlaceholder) false -}}
+  {{- /* data-pagefind-ignore: the placeholder's label is decoration, and
+         without this "hero image · 1600×640" is indexed once per note and
+         appears in excerpts. */ -}}
   {{- if or $hero $placeholder }}
-  <div class="ledger-hero" data-card>
+  <div class="ledger-hero" data-card data-pagefind-ignore>
     {{- if $hero }}
     <img src="{{ $hero }}" alt="{{ .Params.imageAlt | default "" }}" loading="lazy" width="1600" height="640">
     {{- else }}
@@ -115,6 +122,38 @@
   <div class="ledger-prose">
     {{ .Content }}
   </div>
+
+  {{- /* Every external destination this note links, as searchable text.
+
+         Pagefind indexes visible text, so a bare URL — which renders as its own
+         label — is already findable, while `[a label](https://host/path)` is
+         not: the destination exists only in the `href`. In a link-heavy archive
+         that is most of the links, and it left the static backend unable to
+         answer a question the server backend could.
+
+         At the end of the article and not on the links themselves, which
+         `data-pagefind-index-attrs="href"` would also have achieved. Pagefind
+         draws excerpts from indexed text in document order, so an inline
+         attribute splices URLs between the sentences around it and a search for
+         ordinary prose returns an excerpt full of links. Collected here, they
+         are only excerpted when a URL is what matched — the same reasoning that
+         puts them at the end of `body` and out of `summary` on the Bluge side.
+
+         External only: an internal link points at a note that is itself
+         indexed, so its path would add the section name and a slug to every
+         page linking one. obsidian2site.py's `_link_target_url()` draws the
+         line in the same place, so the two backends agree. */ -}}
+  {{- if $indexable }}
+  {{- $links := slice -}}
+  {{- range findRE `https?://[^"'\s<>]+` .Content -}}
+    {{- $links = $links | append . -}}
+  {{- end -}}
+  {{- with ($links | uniq) }}
+  {{- /* hidden, not a screen-reader class: this is text for an indexer, and
+         reading a wall of URLs aloud would be worse than not having it. */}}
+  <p class="ledger-link-index" hidden>{{ delimit . " " }}</p>
+  {{- end }}
+  {{- end }}
 
   {{- with $tags }}
   <footer class="ledger-post-tags">

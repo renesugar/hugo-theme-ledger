@@ -580,6 +580,50 @@ Page 2 of a sorted query was verified to continue page 1's sequence with no
 overlap, which is the invariant `term.html`'s server-rendered first page depends
 on.
 
+### ✅ 8. Make a link's destination searchable
+
+Pagefind indexes visible text. A bare URL renders as its own label and was
+already findable; `[a label](https://host/path)` was not, because the
+destination exists only in the `href`. On a Twitter/X archive that is most of
+the links — reply targets, permalinks, every shortened link behind its display
+text — so the static backend could not answer a question the Bluge backend now
+can.
+
+`page.html` collects the external URLs out of `.Content` into a hidden block at
+the end of the note. Measured on **5,000 real Twitter/X notes** (17,643 external
+links, 3.5 per note), which is the right corpus for this: the generated bench
+corpus has no link density to speak of.
+
+| | indexed words | Pagefind index | published site |
+|---|---|---|---|
+| before | 36,003 | 3.62 MB | 84.49 MB |
+| `data-pagefind-ignore` on the furniture | 36,003 | 3.54 MB (−2.3%) | 84.49 MB |
+| plus the link index | 54,084 | 4.14 MB | 85.47 MB |
+| **net** | **+50%** | **+14.3%** | **+1.2%** (194 B/note) |
+
+The published-site cost is noise against the 1 GB GitHub Pages ceiling. The
+index cost is real but bounded, and it buys the same URL queries the server
+backend answers — whole URL, prefix, or components.
+
+**Placement is what makes it usable.** `data-pagefind-index-attrs="href"` on
+each anchor indexes the same text and was measured first (4.19 MB, slightly
+worse). It was rejected on excerpt quality, not size: Pagefind builds excerpts
+from indexed text in document order, so inline URLs land between the sentences
+around them.
+
+| query | inline attribute | block at the end |
+|---|---|---|
+| `glycolysis lactate` | "…in limiting… In reply to: `https://x.com/i/web/status/1790923105554374715`. @renesugar. "a critical role of…" | "…in limiting… In reply to: @renesugar. "a critical role of glycolysis-derived lactate in limitin…" |
+
+Both find the note. Only one produces a result card a person would want to read.
+The same reasoning puts the URLs at the end of `body` and out of `summary` on
+the Bluge side.
+
+Two excerpt leaks were found while measuring this and fixed in the same pass:
+the back link and the hero placeholder sit inside `data-pagefind-body`, so
+"← back to results" and "hero image · 1600×640" were indexed once per note and
+appeared at the front of excerpts.
+
 ## Recommendation
 
 Hypothesis 1 changes the shape of this recommendation: it matters *which*

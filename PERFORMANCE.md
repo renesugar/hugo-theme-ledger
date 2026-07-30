@@ -138,12 +138,33 @@ query, with nothing cached:
 | `?q=tag:baridck` — filter | 39 | **13,637 KB** | 443 |
 | `/search/` — no query (matchAll, date-sorted) | 25,000 | 13,497 KB | many |
 
-**A filtered query costs 37× the bytes of a free-text one, and it does not
-depend on how selective the filter is.** Thirty-nine matches cost the same 13.6 MB
-as twenty-five thousand: the cost is loading the filter index itself — 443 requests
-for 250 tag values — before any filtering can happen. That is the same wall
-hypothesis 4 below hit from the other side, where warming the filters explicitly
-took 106 seconds.
+**A filtered query costs 37× the bytes of a free-text one, and it does not depend
+on how selective the filter is.** Thirty-nine matches cost the same 13.6 MB as
+twenty-five thousand.
+
+**The cause is the null search term, not the filter.** An earlier revision of this
+section blamed the filter index; that was wrong, and these four cold page loads say
+why — each one is a fresh page with nothing cached:
+
+| cold load | term | matches | Pagefind bytes | requests |
+|---|---|---|---|---|
+| `/search/` — no query at all | null | 25,000 | 13,503 KB | 442 |
+| `?q=category:Recipes` | null | 1,787 | 13,559 KB | 443 |
+| `?q=tag:baridck` | null | 39 | 13,637 KB | 443 |
+| `?q=category:Recipes baridck` | **"baridck"** | 175 | **425 KB** | **18** |
+| `?q=baridck` | **"baridck"** | 2,327 | **369 KB** | **17** |
+
+A `matchAll` with no filter at all costs the same 13 MB as a tag filter, and
+driving Pagefind's API directly with `search(null, {})` — no filters, no sort —
+still costs 13,154 KB over 426 requests. Meanwhile *adding a text term to the very
+same filter* takes it from 13,559 KB to 425 KB.
+
+So: `pagefind.search(null, …)` means "everything, then filter", and Pagefind pays
+for it by touching ~440 chunks. `pagefind.search("word", …)` starts from a term
+posting list and touches ~18. The sort makes no difference either way.
+
+That is the same wall hypothesis 4 below hit from the other side, where warming
+the filters explicitly took 106 seconds.
 
 Once loaded, queries are cheap. Warm, on the same page:
 
@@ -166,9 +187,18 @@ Two things follow for the theme:
 - The design already avoids the expensive path for the navigation people actually
   use: an over-limit term archive is server-rendered and issues no query at all
   (hypothesis 1 below). What remains expensive is a *hand-typed* filter query.
-- **Visiting `/search/` with no query pays the full filter cost** — the empty
-  query is a date-sorted matchAll. That is worth revisiting: the search page's
-  resting state is its most expensive request.
+- **Visiting `/search/` with no query is the most expensive request the site can
+  make**: an empty query is a null-term matchAll, so it costs 13.5 MB and 442
+  requests at 25k. `category:"All notes"` is byte-for-byte the same query — the
+  grammar defines that label as meaning everything, so it parses to exactly the
+  same shape as an empty box.
+
+  A per-category default in the same style — Joplin's model, where an empty query
+  lists the current notebook — would cost the same, because `category:X` with no
+  term is also a null-term query (13,559 KB measured). Selectivity does not help.
+  The theme already renders that view for free: `/categories/x/` is server-rendered
+  by `term.html` and issues no search request at all. The fix for the search page's
+  resting state is therefore not a cheaper query but no query.
 
 ### The same measurement at 200,000 notes
 
@@ -207,7 +237,7 @@ about which one bites:
 
 | cost | scales with | at 200k |
 |---|---|---|
-| cold bytes to filter at all | number of tag values | 103 MB, 2,200 requests |
+| cold bytes for a **null-term** query (filter-only or matchAll) | corpus size | 103 MB, 2,200 requests |
 | warm latency | number of matches | 132 s for 54,854 matches |
 | warm bytes | nothing much | 5–6 KB |
 | paging | nothing | 2 ms |

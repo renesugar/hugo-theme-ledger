@@ -142,28 +142,22 @@
          External only: an internal link points at a note that is itself
          indexed, so its path would add the section name and a slug to every
          page linking one. obsidian2site.py's `_link_target_url()` draws the
-         line in the same place, so the two backends agree. */ -}}
+         line in the same place, so the two backends agree.
+
+         The full URLs and nothing else. movenotes additionally indexes each
+         host's parent domains for Bluge, whose analyser keeps a host whole, so
+         `www.sciencedirect.com` is one term there and `sciencedirect.com`
+         matches nothing without the alias. Pagefind splits on the dots at both
+         index and query time — verified with the aliases removed: `nih.gov`,
+         `nlm.nih.gov` and `sciencedirect.com` all still find the note that
+         links `www.ncbi.nlm.nih.gov`. Adding them here would only pay for terms
+         Pagefind already derives. */ -}}
   {{- if $indexable }}
   {{- $links := slice -}}
   {{- range findRE `https?://[^"'\s<>]+` .Content -}}
     {{- $links = $links | append . -}}
   {{- end -}}
-  {{- /* A URL tokenises with its host whole, so `www.sciencedirect.com` is one
-         term and a search for `sciencedirect.com` finds nothing — 2 hits against
-         455 on a real corpus. The `www.`-less spelling is added as its own term.
-         movenotes' `_host_aliases()` does the same, for the same reason.
-
-         The two-dot test only keeps the alias host-shaped; it does not know a
-         public suffix from a domain, which is not worth a suffix list here. */ -}}
-  {{- $aliases := slice -}}
-  {{- range $links -}}
-    {{- $host := index (split (index (split . "://") 1) "/") 0 -}}
-    {{- $host = index (split $host "?") 0 -}}
-    {{- if and (hasPrefix $host "www.") (ge (len (findRE `\.` $host)) 2) -}}
-      {{- $aliases = $aliases | append (strings.TrimPrefix "www." $host) -}}
-    {{- end -}}
-  {{- end -}}
-  {{- with (($links | append $aliases) | uniq) }}
+  {{- with ($links | uniq) }}
   {{- /* hidden, not a screen-reader class: this is text for an indexer, and
          reading a wall of URLs aloud would be worse than not having it. */}}
   <p class="ledger-link-index" hidden>{{ delimit . " " }}</p>

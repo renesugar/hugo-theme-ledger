@@ -66,6 +66,28 @@ including the rule that the configured "all notes" label means *no* filter.
 | `page`, `per` | what `bluge.js` sends; `per` is capped at 100 |
 | `offset`, `limit` | accepted instead, for callers that are not the adapter |
 | `sort` | `date` (the default, for every query shape) or `score` for ranking |
+| `expr` | the query as a JSON expression tree; when present it *is* the query |
+
+`expr` exists because the parameters above cannot express `OR`, negation or
+grouping — they are a flat set of clauses, all ANDed. The tree can:
+
+```json
+{"type":"and","nodes":[
+  {"type":"or","nodes":[{"type":"term","value":"apple"},
+                        {"type":"term","value":"banana"}]},
+  {"type":"not","node":{"type":"field","field":"tag","value":"sweet"}}]}
+```
+
+Node types are `and` and `or` (with `nodes`), `not` (with `node`), `term`,
+`phrase` (with `value`), and `field` (with `field` and `value`, where `field` is
+one of `category`, `tag`, `since`, `until`). Anything else is a `400` naming the
+problem, as is a tree over 8 KB or nested deeper than 32.
+
+A negation is built as the `MustNot` of the boolean containing it — Bluge has no
+standalone negation query — and a bare `-term` becomes a `MustNot`-only boolean,
+which Bluge answers directly. The response echoes the tree back in the grammar's
+own syntax, so the log line shows how a query was *understood*, not just what
+arrived.
 
 A malformed date or an inverted range is a `400`, not a silently empty result.
 

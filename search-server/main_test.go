@@ -3,6 +3,7 @@ package main
 import (
 	"net/url"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -150,5 +151,76 @@ func TestBoundedClampsAndFallsBack(t *testing.T) {
 	}
 	if got := bounded("-5", 6, 1, 100); got != 1 {
 		t.Errorf("under minimum = %d, want 1", got)
+	}
+}
+
+// The expression tree is the half of the contract the flat parameters cannot
+// carry, and it has two implementations — this server and movenotes' generated
+// one. Both parse and render it the same way, so both are pinned the same way.
+func TestExpressionParsingAndEcho(t *testing.T) {
+	for _, c := range []struct{ expr, want string }{
+		{`{"type":"term","value":"cat"}`, "cat"},
+		{`{"type":"or","nodes":[{"type":"term","value":"cat"},{"type":"term","value":"dog"}]}`, "cat OR dog"},
+		{`{"type":"and","nodes":[{"type":"term","value":"a"},{"type":"or","nodes":[{"type":"term","value":"b"},{"type":"term","value":"c"}]}]}`, "a (b OR c)"},
+		{`{"type":"and","nodes":[{"type":"term","value":"cat"},{"type":"not","node":{"type":"term","value":"grumpy"}}]}`, "cat -grumpy"},
+		{`{"type":"not","node":{"type":"or","nodes":[{"type":"term","value":"b"},{"type":"term","value":"c"}]}}`, "-(b OR c)"},
+		{`{"type":"field","field":"tag","value":"two words"}`, `tag:"two words"`},
+		{`{"type":"phrase","value":"bank of canada"}`, `"bank of canada"`},
+	} {
+		got, err := params("expr=" + url.QueryEscape(c.expr))
+		if err != nil {
+			t.Fatalf("parseParams(%s): %v", c.expr, err)
+		}
+		if got.expr == nil {
+			t.Fatalf("parseParams(%s) produced no tree", c.expr)
+		}
+		if described := describe(got); described != c.want {
+			t.Errorf("describe(%s) = %q, want %q", c.expr, described, c.want)
+		}
+		// Every shape must also build a query rather than falling through.
+		if buildQuery(got) == nil {
+			t.Errorf("buildQuery(%s) = nil", c.expr)
+		}
+	}
+}
+
+// A malformed tree names its problem, so a client sending the wrong shape is
+// told rather than served an empty result set.
+func TestExpressionRejectsMalformedTrees(t *testing.T) {
+	for _, c := range []struct{ name, expr, contains string }{
+		{"not json", `{oops`, "not valid JSON"},
+		{"unknown type", `{"type":"xor","nodes":[]}`, "unknown node type"},
+		{"unknown field", `{"type":"field","field":"author","value":"x"}`, "unknown field"},
+		{"empty conjunction", `{"type":"and","nodes":[]}`, "with no operands"},
+		{"valueless term", `{"type":"term","value":""}`, "with no value"},
+		{"bad date", `{"type":"field","field":"since","value":"yesterday"}`, "expected YYYY-MM-DD"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			_, err := params("expr=" + url.QueryEscape(c.expr))
+			if err == nil {
+				t.Fatalf("parseParams(%s) accepted a malformed tree", c.expr)
+			}
+			if !strings.Contains(err.Error(), c.contains) {
+				t.Errorf("error %q does not mention %q", err, c.contains)
+			}
+		})
+	}
+}
+
+// A query with no tree still parses through the flat parameters, which the
+// contract promises to `offset`/`limit` callers.
+func TestFlatParametersStillWorkWithoutATree(t *testing.T) {
+	got, err := params("q=housing&tag=economics&per=5")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.expr != nil {
+		t.Errorf("expr = %+v, want nil", got.expr)
+	}
+	if got.terms != "housing" || !reflect.DeepEqual(got.tags, []string{"economics"}) {
+		t.Errorf("params = %+v", got)
+	}
+	if describe(got) != "tag:economics housing" {
+		t.Errorf("describe = %q", describe(got))
 	}
 }

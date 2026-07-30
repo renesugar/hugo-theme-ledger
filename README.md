@@ -10,7 +10,7 @@ see [PERFORMANCE.md](PERFORMANCE.md).
 
 - Three themes — light, dark, high contrast — applied before first paint
 - Pagefind search rendered **in the page**, not in a popup
-- Swappable search backend: Pagefind (static) or Bluge (server)
+- Swappable search backend: Pagefind (static), Bluge (server), or auto
 - Resizable, collapsible sidebar with independent pagination per panel
 - No images, no icon fonts, no JavaScript dependencies
 
@@ -149,9 +149,10 @@ All under `[params]`. Every value shown is the default.
     heroPlaceholder = true      # striped stand-in when a note has no `image`
 
   [params.search]
-    backend = "pagefind"        # pagefind | bluge
+    backend = "pagefind"        # pagefind | bluge | auto
     bundlePath = "/pagefind/pagefind.js"
-    endpoint = "/api/search"    # bluge only
+    endpoint = "/api/search"        # bluge only
+    healthEndpoint = "/api/health"  # auto only
 
   [params.scale]
     maxHomePagerPages = 500     # cap on generated /page/N/ directories
@@ -260,6 +261,18 @@ shows up in search itself:
 
 Up to ~25k notes, Pagefind is comfortable. Past that, stay on Pagefind if people
 mostly browse, and move to Bluge if they mostly search.
+
+### `auto`
+
+`backend = "auto"` picks Bluge when a server answers `/api/health` and Pagefind
+when nothing does. It is for one build that has to work both ways — a generated
+archive published as static files *and* served locally by the Go server — and it
+needs both indexes present.
+
+The probe runs once per page load, with a 1.5 s timeout, and the answer is
+cached; a site that is always one or the other should name that backend and skip
+the probe. If the server stops answering mid-session, the first failing query
+falls back to Pagefind for the rest of the session, and nothing re-probes.
 
 ## Development
 

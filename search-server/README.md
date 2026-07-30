@@ -90,6 +90,10 @@ is reaching it and finding nothing.
      endpoint = "/api/search"
    ```
 
+   Or `backend = "auto"` for one build that has to work both ways: it probes
+   `/api/health` and uses this server when it answers, Pagefind when it does not.
+   That needs both indexes present.
+
 2. Have Hugo emit the index source. This is opt-in — a Pagefind site should not
    pay to render every note's plain text:
 

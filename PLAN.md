@@ -290,3 +290,30 @@ explicit `rss = false` as absent — Hugo's `default` treats false as empty.
   `params.scale.maxSectionPagerPages` (default 500 in the example config),
   applied by truncating before `.Paginate`, with the same "showing the N most
   recent" ceiling card home uses.
+
+### 17. The `auto` backend  ✅
+`backend = "auto"` for a build that has to work both as static files and behind
+the Go server — which is what movenotes' `--search-backend both` has always
+promised, and could not express while a backend was chosen at build time.
+
+`auto.js` is not a third engine. It probes `/api/health` once per page load, with
+a 1.5 s timeout, and then delegates to `bluge.js` or `pagefind.js`; a backend has
+to name itself in that response, because a static host serving something at that
+path is not a search server. The answer is cached, so search never pays for the
+probe twice, and concurrent `init()` calls share one probe.
+
+Its one piece of behaviour beyond delegation: if the server stops answering
+mid-session, the first failing query falls back to Pagefind for the rest of the
+session instead of reporting search as broken. That downgrade is deliberately
+one-way — a visitor typing queries is not the right place to retry a server.
+
+Also fixed the `home.ledgersearch.jsonl` guard, which warned that the JSONL was
+unused whenever the backend was not exactly `bluge`; `auto` may select Bluge and
+needs it too.
+
+Verified in a browser on one build served two ways: as static files it probes,
+gets a 404 and uses Pagefind; behind the server it probes, gets `bluge` and
+answers `since:`/`until:` with no unsupported-clause notice and no Pagefind
+download at all. The downgrade was verified by failing `/api/search` while the
+page was open — results kept coming from Pagefind, and the next query issued no
+further request to the dead server.

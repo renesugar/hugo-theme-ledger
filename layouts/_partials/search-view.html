@@ -26,12 +26,13 @@
 {{- if $prerendered }}{{ $pages = math.Ceil (div (float $total) $per) }}{{ end -}}
 
 {{- $config := dict
-      "backend"       ($p.search.backend | default "pagefind")
-      "bundlePath"    ($p.search.bundlePath | default "/pagefind/pagefind.js")
-      "endpoint"      ($p.search.endpoint | default "/api/search")
-      "perPage"       $per
-      "allNotesLabel" ($p.sidebar.allNotesLabel | default "All notes")
-      "searchURL"     ("/search/" | relURL)
+      "backend"        ($p.search.backend | default "pagefind")
+      "bundlePath"     ($p.search.bundlePath | default "/pagefind/pagefind.js")
+      "endpoint"       ($p.search.endpoint | default "/api/search")
+      "healthEndpoint" ($p.search.healthEndpoint | default "/api/health")
+      "perPage"        $per
+      "allNotesLabel"  ($p.sidebar.allNotesLabel | default "All notes")
+      "searchURL"      ("/search/" | relURL)
 -}}
 
 <div class="ledger-search" data-ledger-search

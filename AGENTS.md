@@ -95,6 +95,12 @@ Add one beside `pagefind.js`/`bluge.js`, register it in the `BACKENDS` map in
 `main.js`, select it with `params.search.backend`. Do not re-parse the grammar
 in a backend.
 
+`auto.js` is not a third engine: it probes `/api/health` once per page load and
+then delegates every call to `bluge.js` or `pagefind.js`. A build using it needs
+both indexes. Its one piece of real behaviour is the one-way downgrade when a
+server dies mid-session — do not add a re-probe there; a visitor typing queries
+is not the place to retry a server.
+
 **A backend that cannot honour a clause must name it in `unsupported`**, and the
 search view tells the visitor. Pagefind has filters and phrases but no date
 range; silently dropping `since:` would return the unbounded set and look like an

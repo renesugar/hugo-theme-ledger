@@ -8,8 +8,9 @@ import { parseQuery } from './query.js';
 import { windowPages } from './paging.js';
 import * as pagefind from './backends/pagefind.js';
 import * as bluge from './backends/bluge.js';
+import * as auto from './backends/auto.js';
 
-var BACKENDS = { pagefind: pagefind, bluge: bluge };
+var BACKENDS = { pagefind: pagefind, bluge: bluge, auto: auto };
 
 var root = document.querySelector('[data-ledger-search]');
 if (root) init(root);

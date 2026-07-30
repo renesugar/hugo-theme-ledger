@@ -8,8 +8,9 @@
 
        Fields mirror the adapter contract in assets/js/search/backends/bluge.js,
        plus `body` for full-text matching. */ -}}
-{{- if ne (site.Params.search.backend | default "pagefind") "bluge" -}}
-{{- warnf "layouts/home.ledgersearch.jsonl rendered while params.search.backend is %q — the JSONL source is only consumed by the bluge backend." (site.Params.search.backend | default "pagefind") -}}
+{{- $backend := site.Params.search.backend | default "pagefind" -}}
+{{- if not (in (slice "bluge" "auto") $backend) -}}
+{{- warnf "layouts/home.ledgersearch.jsonl rendered while params.search.backend is %q — this JSONL is only consumed by the bluge backend, which auto may also select." $backend -}}
 {{- end -}}
 {{- $sections := site.Params.mainSections | default (slice "notes") -}}
 {{- range $sections -}}

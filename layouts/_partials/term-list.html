@@ -17,7 +17,7 @@
 {{- $max := .max -}}
 {{- $order := .order -}}
 {{- $prefix := .prefix -}}
-{{- $searchURL := "/search/" | relURL -}}
+{{- $searchURL := partial "site-url.html" "/search/" -}}
 
 {{- $terms := slice -}}
 {{- with site.GetPage (printf "/%s" $key) -}}

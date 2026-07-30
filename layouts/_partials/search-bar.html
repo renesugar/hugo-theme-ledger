@@ -13,7 +13,7 @@
 
 <div class="ledger-searchbar">
   <form class="ledger-searchbar-row" role="search" method="get"
-        action="{{ "/search/" | relURL }}" data-ledger-search-form>
+        action="{{ partial "site-url.html" "/search/" }}" data-ledger-search-form>
     <div class="ledger-searchbar-field" data-card>
       <span class="ledger-searchbar-glyph" aria-hidden="true">&#x2315;</span>
       <label class="ledger-sr-only" for="ledger-q">Search notes</label>

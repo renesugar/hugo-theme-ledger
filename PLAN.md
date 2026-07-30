@@ -317,3 +317,36 @@ answers `since:`/`until:` with no unsupported-clause notice and no Pagefind
 download at all. The downgrade was verified by failing `/api/search` while the
 page was open — results kept coming from Pagefind, and the next query issued no
 further request to the dead server.
+
+### 18. Subpath deployments  ✅
+The theme was broken on any site published below the domain root — which is the
+normal case on GitHub Pages, where a repository publishes to
+`<owner>.github.io/<repo>/`.
+
+`relURL` drops the baseURL's path when its argument begins with a slash:
+
+```
+baseURL = "https://example.github.io/archive/"
+"/search/" | relURL  ->  /search/            wrong
+"search/"  | relURL  ->  /archive/search/    right
+```
+
+Every link, stylesheet, script and fetch URL in the theme was written the first
+way — 23 of them. Rather than removing 23 slashes and trusting the next edit,
+they now go through `_partials/site-url.html`, which takes either form and passes
+absolute URLs through. `baseof.html`'s active-nav comparison uses it on both
+sides, so it keeps matching.
+
+Two runtime consequences needed more than a path fix:
+
+- The search config's `bundlePath`, `endpoint` and `healthEndpoint` are fetched or
+  imported by the browser, so they carry the subpath now; an absolute URL still
+  passes through, which is how a Bluge server on another host is configured. The
+  config also gained `siteRoot` for backends that resolve stored result URLs.
+- **Pagefind needed `baseUrl` in `options()`.** It records result URLs relative to
+  the directory it indexed, which is the built site's root and not the domain's,
+  so every result linked to `/notes/…` and 404ed.
+
+Verified by building `exampleSite` with `--baseURL https://example.github.io/archive/`,
+serving it under `/archive/`, and driving search in a browser: four results, every
+href under `/archive/`, and no request outside the subpath except the favicon.

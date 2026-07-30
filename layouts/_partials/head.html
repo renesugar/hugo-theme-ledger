@@ -46,7 +46,7 @@
        generator writing a site does not want to depend on Hugo's asset
        pipeline. Absolute URLs are passed through untouched. */}}
 {{- range site.Params.extraCSS }}
-<link rel="stylesheet" href="{{ if hasPrefix . "http" }}{{ . }}{{ else }}{{ . | relURL }}{{ end }}">
+<link rel="stylesheet" href="{{ partial "site-url.html" . }}">
 {{- end }}
 
 {{- with .OutputFormats.Get "rss" }}

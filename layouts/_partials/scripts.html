@@ -4,5 +4,5 @@
 {{- /* Site-supplied scripts, deferred and loaded after the theme's. URLs rather
        than pipeline assets, for the same reason as params.extraCSS. */}}
 {{- range site.Params.extraJS }}
-<script defer src="{{ if hasPrefix . "http" }}{{ . }}{{ else }}{{ . | relURL }}{{ end }}"></script>
+<script defer src="{{ partial "site-url.html" . }}"></script>
 {{- end }}

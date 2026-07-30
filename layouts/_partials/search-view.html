@@ -25,14 +25,21 @@
 {{- $pages := 0 -}}
 {{- if $prerendered }}{{ $pages = math.Ceil (div (float $total) $per) }}{{ end -}}
 
+{{- /* Every URL here is fetched or imported at runtime, so each one has to carry
+       the baseURL's path — a project site published at /repo/ would otherwise
+       request /pagefind/pagefind.js and /api/search at the domain root. An
+       absolute URL is passed through, which is how a Bluge server on another
+       host is configured. `siteRoot` is what backends resolve stored result URLs
+       against. */ -}}
 {{- $config := dict
       "backend"        ($p.search.backend | default "pagefind")
-      "bundlePath"     ($p.search.bundlePath | default "/pagefind/pagefind.js")
-      "endpoint"       ($p.search.endpoint | default "/api/search")
-      "healthEndpoint" ($p.search.healthEndpoint | default "/api/health")
+      "bundlePath"     (partial "site-url.html" ($p.search.bundlePath | default "/pagefind/pagefind.js"))
+      "endpoint"       (partial "site-url.html" ($p.search.endpoint | default "/api/search"))
+      "healthEndpoint" (partial "site-url.html" ($p.search.healthEndpoint | default "/api/health"))
+      "siteRoot"       (partial "site-url.html" "/")
       "perPage"        $per
       "allNotesLabel"  ($p.sidebar.allNotesLabel | default "All notes")
-      "searchURL"      ("/search/" | relURL)
+      "searchURL"      (partial "site-url.html" "/search/")
 -}}
 
 <div class="ledger-search" data-ledger-search
@@ -75,7 +82,7 @@
     {{- if not $prerendered }}
     <p class="ledger-page-ceiling">
       Search needs JavaScript. Browse by
-      <a href="{{ "/tags/" | relURL }}">tag</a> instead.
+      <a href="{{ partial "site-url.html" "/tags/" }}">tag</a> instead.
     </p>
     {{- else if gt $pages 1 }}
     <p class="ledger-page-ceiling">

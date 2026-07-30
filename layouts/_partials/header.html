@@ -4,9 +4,9 @@
 {{- $active := . -}}
 {{- $nav := slice
       (dict "key" "home"   "name" "Home"   "url" site.Home.RelPermalink)
-      (dict "key" "tags"   "name" "Tags"   "url" ("/tags/" | relURL))
-      (dict "key" "about"  "name" "About"  "url" ("/about/" | relURL))
-      (dict "key" "search" "name" "Search" "url" ("/search/" | relURL))
+      (dict "key" "tags"   "name" "Tags"   "url" (partial "site-url.html" "/tags/"))
+      (dict "key" "about"  "name" "About"  "url" (partial "site-url.html" "/about/"))
+      (dict "key" "search" "name" "Search" "url" (partial "site-url.html" "/search/"))
 -}}
 {{- $themes := slice
       (dict "value" "light"    "label" "Light theme")
@@ -36,7 +36,7 @@
 
   <span class="ledger-spacer"></span>
 
-  <a class="ledger-search-shortcut" href="{{ "/search/" | relURL }}">
+  <a class="ledger-search-shortcut" href="{{ partial "site-url.html" "/search/" }}">
     <span aria-hidden="true">&#x29D6;</span>
     <span class="ledger-sr-only">Search</span>
   </a>

@@ -1,0 +1,28 @@
+{{- /* Resolves a site-absolute path against the site's baseURL. Returns a string.
+
+       Takes a path, with or without a leading slash, or an absolute URL (passed
+       through untouched).
+
+       This exists because `relURL` silently drops the baseURL's path when its
+       argument starts with a slash:
+
+         baseURL = "https://example.github.io/archive/"
+         "/search/" | relURL  ->  /search/            ← wrong, 404
+         "search/"  | relURL  ->  /archive/search/    ← right
+
+       Every link, asset and fetch URL in the theme is site-absolute, so every one
+       of them was wrong on a project site — the normal case on GitHub Pages,
+       where a repository publishes to <owner>.github.io/<repo>/. Routing them
+       through here keeps the rule in one place instead of relying on twenty-odd
+       templates each remembering to omit a slash. */ -}}
+
+{{- $path := . -}}
+{{- if reflect.IsMap $path }}{{ $path = $path.path }}{{ end -}}
+{{- $path = string $path -}}
+{{- $resolved := "" -}}
+{{- if or (hasPrefix $path "http://") (hasPrefix $path "https://") (hasPrefix $path "//") -}}
+  {{- $resolved = $path -}}
+{{- else -}}
+  {{- $resolved = relURL (strings.TrimPrefix "/" $path) -}}
+{{- end -}}
+{{- return $resolved -}}

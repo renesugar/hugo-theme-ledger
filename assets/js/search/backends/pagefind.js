@@ -29,7 +29,11 @@ export async function init(config) {
   // resolvable at build time; the import specifier stays a runtime value.
   var path = config.bundlePath || '/pagefind/pagefind.js';
   pagefind = await import(/* webpackIgnore: true */ path);
-  await pagefind.options({ excerptLength: 30 });
+  // baseUrl, or every result URL misses the site's subpath: Pagefind records
+  // them relative to the directory it indexed, which is the built site's root and
+  // not necessarily the domain's. A project site published at /repo/ would link
+  // every result to /notes/… and 404.
+  await pagefind.options({ excerptLength: 30, baseUrl: config.siteRoot || '/' });
 }
 
 export async function search(parsed, opts) {

@@ -17,7 +17,7 @@
 {{- $singular := .Data.Singular -}}
 {{- $tagPlural := site.Params.taxonomy.tagPlural | default "tags" -}}
 {{- $isTag := eq .Data.Plural $tagPlural -}}
-{{- $searchURL := "/search/" | relURL -}}
+{{- $searchURL := partial "site-url.html" "/search/" -}}
 {{- $paginator := .Paginate .Pages.ByTitle $per -}}
 
 <div class="ledger-taxonomy">

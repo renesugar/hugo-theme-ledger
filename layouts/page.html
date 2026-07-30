@@ -12,7 +12,7 @@
 {{- $limit := int (site.Params.taxonomyPageLimit | default 25) -}}
 {{- $catPlural := site.Params.taxonomy.categoryPlural | default "categories" -}}
 {{- $tagPlural := site.Params.taxonomy.tagPlural | default "tags" -}}
-{{- $searchURL := "/search/" | relURL -}}
+{{- $searchURL := partial "site-url.html" "/search/" -}}
 
 {{- $category := index (.Params.categories | default slice) 0 -}}
 {{- $tags := .Params.tags | default slice -}}
@@ -96,7 +96,7 @@
     {{- with $.Resources.GetMatch . -}}
       {{- $hero = .RelPermalink -}}
     {{- else -}}
-      {{- $hero = cond (hasPrefix . "http") . (relURL .) -}}
+      {{- $hero = partial "site-url.html" . -}}
     {{- end -}}
   {{- end }}
   {{- /* Not `| default true`: Hugo's `default` treats false as absent, and the

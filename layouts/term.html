@@ -18,7 +18,7 @@
 {{- $term := or .Data.Term .LinkTitle -}}
 {{- $count := len .Pages -}}
 {{- $query := partial "search-clause.html" (dict "field" $prefix "value" $term) -}}
-{{- $searchURL := printf "%s?q=%s" ("/search/" | relURL) ($query | urlquery) -}}
+{{- $searchURL := printf "%s?q=%s" (partial "site-url.html" "/search/") ($query | urlquery) -}}
 {{- $eyebrow := printf "%s archive" $prefix -}}
 {{- $heading := cond $isTag (printf "#%s" $term) $term -}}
 

@@ -106,6 +106,19 @@ search view tells the visitor. Pagefind has filters and phrases but no date
 range; silently dropping `since:` would return the unbounded set and look like an
 answer.
 
+**Every site-absolute URL goes through `_partials/site-url.html`.** `relURL`
+silently drops the baseURL's path when its argument starts with a slash:
+`"/search/" | relURL` is `/search/`, while `"search/" | relURL` is
+`/archive/search/`. Every link, asset and fetch URL in the theme is
+site-absolute, so all of them were wrong on a project site — the normal case on
+GitHub Pages. Do not write `relURL` with a leading slash; the partial takes
+either form and passes absolute URLs through.
+
+That includes the runtime URLs in the search config (`bundlePath`, `endpoint`,
+`healthEndpoint`) and `siteRoot`, which backends resolve stored result URLs
+against. Pagefind additionally needs `baseUrl` in `options()`, or every result
+links to the domain root.
+
 **Every generated query clause goes through `_partials/search-clause.html`.**
 The grammar tokenises on whitespace, so `category:Field notes` parses as a
 category plus a stray term — the partial quotes values that need it. Six

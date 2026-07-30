@@ -350,3 +350,27 @@ Two runtime consequences needed more than a path fix:
 Verified by building `exampleSite` with `--baseURL https://example.github.io/archive/`,
 serving it under `/archive/`, and driving search in a browser: four results, every
 href under `/archive/`, and no request outside the subpath except the favicon.
+
+### 19. Benchmark tiers 25k and 200k, and a byte-accurate baseline  ✅
+Two new tiers, and the metric that the Orama/FlexSearch comparison turns on.
+
+**Bytes cannot be measured in the browser.** Pagefind fetches its index from a
+SharedWorker, and a worker's requests never appear in the page's Resource Timing
+entries — so an in-page count reports zero bytes for Pagefind while correctly
+counting a backend that fetches from the page. It would have flattered Pagefind in
+exactly the comparison the harness exists to make. `scripts/serve-counting.js` is
+a dependency-free static server that tallies what it serves;
+`/__bytes?reset=1` starts a measurement. `query-latency.js` also switched from
+`transferSize` to `encodedBodySize`, since the former is 0 for a cache hit.
+
+The result, in `PERFORMANCE.md`: Pagefind has **two independent limits**. Cold
+bytes scale with the number of *tag values* — 13.6 MB at 250 tags, 103 MB and
+2,200 requests at 2,000 — and warm latency scales with the number of *matches*,
+reaching 132 s for a query matching 54,854 of 200,000 notes while transferring
+6 KB. Free text is cheap and scales sublinearly (369 KB at 25k, 1,759 KB at 200k),
+and paging stays flat at 2 ms.
+
+`bench.sh` gained `maxSectionPagerPages` — the older rows were measured before
+that cap and silently emitted a pager directory per six notes, ~83,000 of them at
+500k — plus `home_pagers`, `section_pagers` and `term_dirs` columns so the caps
+are visible in the data rather than inferred from a total.

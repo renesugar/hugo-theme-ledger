@@ -4,22 +4,33 @@ The theme targets sites with 100k+ pages. This records what was actually
 measured, on what, and which design decisions the numbers justify.
 
 **Headline: the build scales to 500k, though not cheaply — 80 minutes and
-13 GB. Pagefind's filter queries do not —
-but the paths visitors actually take no longer use them.** Opening a category or
-tag is server-rendered and instant at any size. Deep paging and hand-typed
-`category:`/`tag:` queries stay slow, so a search-led site past ~25k notes wants
-the Bluge backend — which is what the swappable search interface exists for.
+13 GB. Pagefind's filter queries do not — but the paths visitors actually take no
+longer use them.** Opening a category or tag is server-rendered and instant at any
+size, and paging is flat. Hand-typed `category:`/`tag:` queries are the exception,
+and they are worse than "slow": at 200,000 notes the first one downloads **103 MB
+over 2,200 requests**, and a warm query matching a quarter of the corpus takes
+**132 seconds**. A search-led site past ~25k notes wants the Bluge backend, which
+answers the same filter in 44 ms — which is what the swappable search interface
+exists for.
 
 ## Method
 
 ```bash
-scripts/bench.sh 10000 100000 500000
+scripts/bench.sh 10000 25000 100000 200000 500000
 ```
 
 `scripts/gen-corpus.js` writes a synthetic corpus; `scripts/bench.sh` builds it,
 runs Pagefind over the output, and appends a row to `bench/out/results.tsv`.
 Query latency is measured separately with `scripts/query-latency.js`, pasted
 into the console of the built site's `/search/` page.
+
+**Bytes are counted at the server, not in the browser.**
+`scripts/serve-counting.js` is a static file server that tallies what it serves,
+because Pagefind fetches its index from a SharedWorker and a worker's requests
+never appear in the page's Resource Timing entries. An in-page byte count reports
+zero for Pagefind while correctly counting a backend that fetches from the page —
+which would flatter Pagefind in exactly the comparison this harness exists to
+make. Reset with `/__bytes?reset=1`, drive the page, read `/__bytes`.
 
 The corpus shape is deliberate:
 
@@ -50,8 +61,27 @@ transfers.
 | notes | build | peak RSS | public | HTML files | home page | note page |
 |---|---|---|---|---|---|---|
 | 10,000 | 23.7 s | 668 MB | 384 MB | 12,294 | 23 KB | 20 KB |
+| 25,000 | 58.3 s | 1.3 GB | 838 MB | 26,285 | 23 KB | 20 KB |
 | 100,000 | 304.7 s | 3.7 GB | 3.7 GB | 118,256 | 22 KB | 20 KB |
+| 200,000 | 631.0 s | 6.2 GB | 6.5 GB | 203,224 | 23 KB | 20 KB |
 | 500,000 | **4,819.5 s** (80 min) | **13.2 GB** | 18.0 GB | 589,904 | 23 KB | 20 KB |
+
+The 25k and 200k rows were measured with `maxSectionPagerPages` in place, and
+they show what it is worth: 200,000 notes produce **203,224** HTML files, where
+the uncapped 500k build produced 589,904 for 500,000 — about 1.18 files per note
+against 1.02. Both pager caps bind at both tiers (500 each), and 200k carries
+2,001 tag terms.
+
+200k → 500k is 2.5× the notes for 7.6× the build time. Between 25k and 200k the
+exponent is milder: 8× the notes for 10.8× the time, ~1.18.
+
+**The 10k, 100k and 500k rows predate `maxSectionPagerPages`.** Without that cap
+`/notes/` paginates the whole corpus, so those builds also emitted a pager
+directory per six notes — about 83,000 of them at 500k, unnoticed at the time.
+Rows measured after the cap (25k and 200k) do not, which makes them cheaper than
+a straight comparison with the older rows suggests. The `home_pagers`,
+`section_pagers` and `term_dirs` columns in `bench/out/results.tsv` exist so this
+is visible rather than inferred.
 
 **Build time is superlinear, and the exponent worsens with size.** 10k → 100k
 grew 12.8×, an exponent of ~1.11. 100k → 500k grew 15.8× for 5× the notes — an
@@ -77,7 +107,9 @@ Everything else scales cleanly:
 | notes | Pagefind time | Pagefind index | Bluge time | Bluge index |
 |---|---|---|---|---|
 | 10,000 | 56 s | 47 MB | — | — |
+| 25,000 | 141 s | 114 MB | — | — |
 | 100,000 | 547 s | 452 MB | 116 s | 111 MB |
+| 200,000 | 1,086 s (18 min) | 901 MB | — | — |
 | 500,000 | 2,938 s (49 min) | 2.2 GB | — | — |
 
 Pagefind indexing is ~5× slower than Bluge and produces a ~4× larger index on
@@ -93,6 +125,103 @@ One caveat on index size: the synthetic notes are ~180 words drawn randomly
 from a large vocabulary, with almost no phrase repetition between documents.
 That is close to worst case for an inverted index. Real prose repeats itself
 and should compress better, so 451 MB per 100k notes is a pessimistic figure.
+
+## Where Pagefind's bytes go — 25k and 200k
+
+This is the measurement the byte-counting server was added for, and it is the
+sharpest result in this file. Every row is one **cold page load** followed by one
+query, with nothing cached:
+
+| cold load | matches | Pagefind bytes | requests |
+|---|---|---|---|
+| `?q=baridck` — free text | 2,327 | **369 KB** | 17 |
+| `?q=tag:baridck` — filter | 39 | **13,637 KB** | 443 |
+| `/search/` — no query (matchAll, date-sorted) | 25,000 | 13,497 KB | many |
+
+**A filtered query costs 37× the bytes of a free-text one, and it does not
+depend on how selective the filter is.** Thirty-nine matches cost the same 13.6 MB
+as twenty-five thousand: the cost is loading the filter index itself — 443 requests
+for 250 tag values — before any filtering can happen. That is the same wall
+hypothesis 4 below hit from the other side, where warming the filters explicitly
+took 106 seconds.
+
+Once loaded, queries are cheap. Warm, on the same page:
+
+| query | matches | latency | bytes |
+|---|---|---|---|
+| `category:"All notes"` | 25,000 | 7,398 ms | 6 KB |
+| `tag:babreck` | 8,924 | 6,006 ms | 139 KB |
+| `tag:baclack` | 497 | 223 ms | 5 KB |
+| `tag:baridck` | 39 | 76 ms | 6 KB |
+| `baridck` — free text | 2,327 | 1,348 ms | 6 KB |
+| jump to the last page | 25,000 | 2 ms | 0 KB |
+
+So Pagefind's shape at 25k is: **a large fixed cost to filter at all, a small
+marginal cost per query afterwards, and flat paging.** Peak JS heap stayed
+between 6 and 31 MB throughout — an index on disk, fetched in fragments, is not
+an index in memory.
+
+Two things follow for the theme:
+
+- The design already avoids the expensive path for the navigation people actually
+  use: an over-limit term archive is server-rendered and issues no query at all
+  (hypothesis 1 below). What remains expensive is a *hand-typed* filter query.
+- **Visiting `/search/` with no query pays the full filter cost** — the empty
+  query is a date-sorted matchAll. That is worth revisiting: the search page's
+  resting state is its most expensive request.
+
+### The same measurement at 200,000 notes
+
+| cold load | matches | Pagefind bytes | requests | time |
+|---|---|---|---|---|
+| `?q=badrond` — free text | 2,782 | **1,759 KB** | 18 | ~1 s |
+| `?q=tag:badrond` — filter | 33 | **105,811 KB** | **2,200** | **55.9 s** |
+
+**A hand-typed `tag:` query on a 200k-note site downloads 103 MB over 2,200
+requests and takes almost a minute.** That is the filter index again, and it
+scales with the number of tag values rather than with the query: 250 tags cost
+13.6 MB and 443 requests, 2,000 tags cost 103 MB and 2,200 requests — about
+52 KB and 1.1 requests per tag value, at both tiers.
+
+Free text scales far better than the corpus: 369 KB at 25k to 1,759 KB at 200k,
+4.8× for 8× the notes.
+
+Warm, with the filter index already cached, bytes stop mattering and match count
+takes over completely:
+
+| warm query at 200k | matches | latency | bytes |
+|---|---|---|---|
+| `tag:baclack tag:badrock` | 27 | 227 ms | 5 KB |
+| `tag:baclack` | 2,962 | 8.0 s | 6 KB |
+| `badrond` — free text | 2,782 | 11.6 s | 6 KB |
+| `tag:babreck` | 54,854 | **132.5 s** | 6 KB |
+
+Two minutes and twelve seconds, for six kilobytes. That is `pagefind.search()`
+materialising one stub per match — the mechanism identified at 100k, now visible
+in the large: latency is a function of how many notes match, not of how much data
+crosses the wire. A query that matches a quarter of a 200k corpus is not a query
+anyone will wait for.
+
+So Pagefind's shape has two independent limits, and it is worth being precise
+about which one bites:
+
+| cost | scales with | at 200k |
+|---|---|---|
+| cold bytes to filter at all | number of tag values | 103 MB, 2,200 requests |
+| warm latency | number of matches | 132 s for 54,854 matches |
+| warm bytes | nothing much | 5–6 KB |
+| paging | nothing | 2 ms |
+
+The theme's design keeps both off the path a browsing visitor takes: an
+over-limit archive is server-rendered and issues no query at all, and its pager
+is flat. What remains expensive is a hand-typed broad or filtered query, which is
+exactly what the Bluge backend exists for — it answered the equivalent filter in
+44 ms at 100k.
+
+These are also the numbers any candidate backend has to be judged against, and
+they are why bytes and heap are measured at all. A backend that restores a whole
+serialized index into memory has to beat 369 KB at 25k — which nothing that works
+that way can.
 
 ## Query latency at 100k notes
 

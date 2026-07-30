@@ -217,10 +217,18 @@ backend is configured:
 | `"pinch of salt"` | exact phrase |
 | `since:2026-06-01` | on or after that date |
 | `until:2026-07-01` | strictly before it, so one day is `since:D until:D+1` |
+| an empty query | everything, exactly as `category:All notes` |
 | anything else | free text over title, summary and body |
 
 Clauses are ANDed, and anything that does not fit the grammar — `foo:bar`,
 `since:yesterday`, a URL — is searched as text.
+
+**Every query returns results newest first**, not only the filter-only ones —
+an archive is read by date, and ranking would leave the most recent note at an
+unpredictable position. `category:All notes` is discarded by the parser, so it
+and an empty query are the same request. The search page issues nothing until a
+query is submitted; on a Pagefind site that arrival used to be its single most
+expensive request.
 
 **Not every backend implements all of it.** Pagefind has filters and phrases but
 no date range, so a `since:`/`until:` query there returns the unbounded set and

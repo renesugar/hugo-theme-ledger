@@ -150,12 +150,10 @@ export async function search(parsed, opts) {
     });
   }
 
-  // Newest first when there is no text to rank by, matching Hugo's order.
-  if (!parsed.terms.length) {
-    merged.sort(function (a, b) {
-      return ((b.doc && b.doc.date) || 0) - ((a.doc && a.doc.date) || 0);
-    });
-  }
+  // Newest first, always, matching Hugo's order and every other backend.
+  merged.sort(function (a, b) {
+    return ((b.doc && b.doc.date) || 0) - ((a.doc && a.doc.date) || 0);
+  });
 
   var total = merged.length;
   var pages = Math.max(1, Math.ceil(total / perPage));

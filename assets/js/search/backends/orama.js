@@ -91,10 +91,9 @@ export async function search(parsed, opts) {
     offset: (page - 1) * perPage,
   };
   if (Object.keys(where).length) request.where = where;
-  // With nothing to rank by, newest-first — the order Hugo lists a term's pages
-  // in, so a server-rendered first page and a searched second page are slices of
-  // one sequence.
-  if (!request.term) request.sortBy = { property: 'date', order: 'DESC' };
+  // Newest first, always: an archive is read chronologically, and it keeps a
+  // server-rendered first page and a searched second page in one sequence.
+  request.sortBy = { property: 'date', order: 'DESC' };
 
   var response = await orama.search(db, request);
   var total = response.count || 0;

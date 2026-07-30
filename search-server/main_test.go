@@ -96,18 +96,18 @@ func TestParseParamsDateBounds(t *testing.T) {
 	}
 }
 
-// Filter-only queries must come back newest-first, because term.html
-// server-renders page 1 in Hugo's date order and the backend serves page 2.
-// Ranking them by score instead would make the two pages slices of different
+// Every query comes back newest-first, not just filter-only ones: term.html
+// server-renders page 1 in Hugo's date order and the backend serves page 2, and
+// with relevance ranking on some query shapes the two were slices of different
 // sequences.
-func TestParseParamsSortDefaultsToDateOnlyWithoutText(t *testing.T) {
+func TestParseParamsSortsByDateUnlessScoreIsAskedFor(t *testing.T) {
 	cases := map[string]bool{
 		"":                        true,
 		"tag=slow":                true,
 		"since=2026-07-01":        true,
-		"q=water":                 false,
-		"phrase=whole+point":      false,
-		"tag=slow&q=water":        false,
+		"q=water":                 true,
+		"phrase=whole+point":      true,
+		"tag=slow&q=water":        true,
 		"q=water&sort=date":       true,
 		"tag=slow&sort=score":     false,
 		"tag=slow&sort=relevance": false,

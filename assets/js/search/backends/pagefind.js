@@ -53,11 +53,17 @@ export async function search(parsed, opts) {
   // A null term with filters is Pagefind's "everything matching these filters".
   var term = parsed.text ? parsed.text : null;
 
-  // With no text there is no relevance to rank by, so order newest-first —
-  // matching how Hugo lists a term's pages, which lets a server-rendered first
-  // page and a searched second page belong to the same sequence.
-  var request = { filters: filters };
-  if (!term) request.sort = { date: 'desc' };
+  /* Newest first, always — not only when there is no term to rank by.
+     An archive is read chronologically: results in relevance order put the most
+     recent note at an unpredictable position, and deep in a long result set the
+     visitor would have to page to the end to find it.
+
+     It also makes the ordering invariant unconditional. `term.html`
+     server-renders page 1 of an over-limit archive in Hugo's date order and the
+     backend serves page 2; with relevance ranking on some queries those were
+     slices of different sequences. Notes carry `data-pagefind-sort="date"` for
+     exactly this. */
+  var request = { filters: filters, sort: { date: 'desc' } };
 
   var response = await pagefind.search(term, request);
 

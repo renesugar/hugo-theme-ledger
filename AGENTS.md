@@ -150,11 +150,23 @@ which is what keeps the shared header/sidebar/footer out of every excerpt and
 keeps `about.md` and `search.md` out of the index. Adding that attribute to
 another layout changes what the whole site indexes.
 
-**Ordering must agree between Hugo and the backend.** `term.html` server-renders
-page 1 in Hugo's date order; the backend serves page 2. Notes carry
-`data-pagefind-sort="date"` and filter-only queries request a date sort so the
-two are slices of one sequence. Remove that and pages will repeat and skip
-notes.
+**Every query returns newest first.** Not a ranking preference — an invariant
+three things depend on:
+
+- `term.html` server-renders page 1 in Hugo's date order and the backend serves
+  page 2. If a query shape came back ranked instead, the two would be slices of
+  different sequences and pages would repeat and skip notes.
+- An archive is read chronologically. In relevance order the most recent note
+  lands at an unpredictable position, and in a long result set the visitor would
+  have to page to the end to find it.
+- The four backends must agree, or the same query reorders when a site switches
+  backend.
+
+Implemented in each adapter (`sort: {date:'desc'}`, `sortBy`, an explicit
+`merged.sort`) and in both Go servers, unconditionally; notes carry
+`data-pagefind-sort="date"` for it. `sort=score` (or `sort=relevance`) on the
+server backends is the escape hatch for a caller that wants ranking — nothing in
+the theme sends it.
 
 ## The number-windowing rule exists three times
 

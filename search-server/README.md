@@ -65,7 +65,7 @@ including the rule that the configured "all notes" label means *no* filter.
 | `until` | **exclusive** upper bound, so one day is `since:D until:D+1` |
 | `page`, `per` | what `bluge.js` sends; `per` is capped at 100 |
 | `offset`, `limit` | accepted instead, for callers that are not the adapter |
-| `sort` | `date` or `score`; by default, date when there is no text to rank |
+| `sort` | `date` (the default, for every query shape) or `score` for ranking |
 
 A malformed date or an inverted range is a `400`, not a silently empty result.
 
@@ -156,7 +156,10 @@ only needs `endpoint` to resolve — same origin, or CORS on your side.
   make the index larger; that is what the phrase clause costs.
 - Date bounds are a lexical range over the sortable ISO date, so no separate
   datetime field is needed: zero-padded dates sort chronologically as text.
-- With no text query, results sort newest-first rather than by index order.
+- Results sort newest-first for **every** query, not only for those with no text
+  to rank. An archive is read chronologically, and page 1 may be server-rendered
+  by Hugo in date order while this endpoint serves page 2 — the two have to be
+  slices of one sequence. `sort=score` opts back into relevance ranking.
 - The index is written to a temporary directory and swapped into place, so an
   interrupted build never leaves a partial index behind.
 

@@ -445,3 +445,35 @@ shared search bundle for every site.
 Both client-side engines are kept, registered and documented as small-site options.
 The shared search bundle is 13.4 KB with both adapters present, against 8.9 KB with
 neither.
+
+### 22. Result ordering and a search page that rests  ✅
+Two behaviours the archive shape asks for, both narrower than they sound.
+
+**Every query returns newest first.** The date sort was previously requested only
+for null-term queries, on the theory that relevance was worth keeping wherever
+there was a term to rank by. That reasoning does not survive the use case: an
+archive is read chronologically, and in relevance order the most recent note lands
+at an unpredictable position — in a long result set, at the end. It also made the
+Hugo/backend ordering invariant conditional, so `term.html`'s server-rendered page
+1 and a backend-served page 2 were slices of one sequence for some query shapes and
+of two for others. Now unconditional in all four adapters and both Go servers;
+`sort=score` is the escape hatch and nothing in the theme sends it.
+
+The cost was the open question — the null-term sort measures 2× at 200k. On a text
+query it did not appear at all: 369 KB and 1,192 ms at 25k, the same bytes as
+before the change. Page 2 was verified to continue page 1's sequence with no
+overlap.
+
+**`/search/` issues no query until one is submitted.** An arrival with no query in
+the URL was a matchAll, which is the most expensive request Pagefind can serve, so
+merely opening the search page paid for the whole corpus.
+
+| opening `/search/`, 25k, cold | requests | bytes | to `/pagefind/` |
+|---|---|---|---|
+| before | 442 | 13,503 KB | 13,503 KB |
+| after | 12 | 86 KB | **0 KB** |
+
+Nothing is lost: an empty box, once submitted, still means every note. The parser
+already discarded `category:"All notes"` — Joplin's phrasing for "no filter" — so
+that query and an empty one are the same request, verified identical on the
+exampleSite (17 notes, same order).

@@ -484,9 +484,10 @@ faster.
 
 It required making Pagefind's ordering match Hugo's, or page 1 and page 2 would
 have been slices of different sequences. Notes carry `data-pagefind-sort="date"`
-and filter-only queries request a date sort. That sort costs about 2× on the
-queries that still happen (3.0 s → 5.9 s), which is a worthwhile trade now that
-those queries are the exception rather than the common path.
+and every query requests a date sort. On a null-term query that sort costs about
+2× (3.0 s → 5.9 s at 200k), which is a worthwhile trade now that those queries
+are the exception rather than the common path; on a text query it measured free
+(see "Every query is date-sorted" below).
 
 ### ❌ 2. Avoid the filter-only code path
 
@@ -532,6 +533,52 @@ Reindexed the same built HTML with `--exclude-selectors ".ledger-prose"`.
 **Refuted.** The index is dominated by per-page metadata, not body text — 100k
 pages carry ~4 KB each regardless of content. Latency is unchanged, and the
 price is losing full-text search entirely. Not worth exposing as an option.
+
+### ✅ 6. Let the search page rest until the visitor searches
+
+`/search/` used to run its query on load, and an arrival with no query in the URL
+is a matchAll — the single most expensive thing Pagefind can be asked to do.
+Opening the search page therefore paid the full null-term cost before the visitor
+had typed anything.
+
+The page now renders a prompt and issues no request until a query is submitted
+(`awaitFirstQuery()` in `main.js`). Measured at 25k, cold profile, bytes counted
+at the server:
+
+| opening `/search/` with no query | requests | bytes | to `/pagefind/` |
+|---|---|---|---|
+| before | 442 | 13,503 KB | 13,503 KB |
+| after | 12 | 86 KB | **0 KB** |
+
+The same argument as hypothesis 1: the win comes from not searching. It costs
+nothing in reach — an empty box, once submitted, still means "every note", which
+is the behaviour Joplin's `category:"All notes"` has and the grammar treats the
+two as the same query.
+
+### ✅ 7. Every query is date-sorted, and on a text query it is free
+
+The date sort was previously requested only for null-term queries, on the theory
+that ranking was worth keeping where there was a term to rank by. It is not: an
+archive is read chronologically, and a visitor should never have to page to the
+end for the most recent note. The sort is now unconditional in all four backends.
+
+The concern was cost — the null-term sort measured 2× at 200k. On a text query it
+did not show up at all. At 25k, cold, bytes at the server:
+
+| query | matches | latency | bytes | order |
+|---|---|---|---|---|
+| free text | 2,327 | 1,192 ms | 369 KB | date desc |
+| filter + text | 175 | 555 ms | 62 KB | date desc |
+| `tag:` alone | 497 | 8,962 ms | 13,274 KB | date desc |
+| empty = `category:"All notes"` | 25,000 | 7,006 ms | 5 KB (warm) | date desc |
+
+369 KB is the same figure the unsorted free-text query cost, so the sort is free
+on the cheap path. The expensive rows are the null-term shapes, unchanged and
+already understood — and now reached only when the visitor asks for them.
+
+Page 2 of a sorted query was verified to continue page 1's sequence with no
+overlap, which is the invariant `term.html`'s server-rendered first page depends
+on.
 
 ## Recommendation
 

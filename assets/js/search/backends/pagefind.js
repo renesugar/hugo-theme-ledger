@@ -50,6 +50,22 @@ export async function search(parsed, opts) {
   if (parsed.since) unsupported.push('since:');
   if (parsed.until) unsupported.push('until:');
 
+  /* `OR`, negation and grouping.
+
+     Pagefind's filters do support compound logic — `not`, `any`, `all` — but
+     its text search takes one term string and strips punctuation, so `-term`
+     reads as `term`. A query mixing operators with free text therefore cannot
+     be expressed as one Pagefind call, and running several and merging them
+     client-side is what this backend exists to avoid: at 25k notes a filter
+     query already materialises one stub per match.
+
+     So it says what it dropped rather than answering a different question, the
+     same contract `since:`/`until:` use. The Bluge backend answers these in
+     full. */
+  (parsed.operators || []).forEach(function (operator) {
+    unsupported.push(operator === '-' ? 'negation (-)' : operator);
+  });
+
   // A null term with filters is Pagefind's "everything matching these filters".
   var term = parsed.text ? parsed.text : null;
 

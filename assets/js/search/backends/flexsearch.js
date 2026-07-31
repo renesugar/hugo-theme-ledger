@@ -115,6 +115,12 @@ export async function search(parsed, opts) {
   var unsupported = [];
   if (parsed.phrases.length) unsupported.push('"quoted phrases"');
   if (parsed.since || parsed.until) unsupported.push('since:/until: (filtered after search, so counts are approximate)');
+  // Neither engine has an OR, a negation or a group: both take a term string
+  // and a filter set. Reported rather than silently ANDed — the Bluge backend
+  // answers these in full.
+  (parsed.operators || []).forEach(function (operator) {
+    unsupported.push(operator === '-' ? 'negation (-)' : operator);
+  });
 
   var tag = {};
   if (parsed.categories.length) tag.category = [parsed.categories[0]];

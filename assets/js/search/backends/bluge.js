@@ -7,6 +7,11 @@
 
    Expected endpoint request and response:
 
+     GET {endpoint}?expr=<JSON expression tree>
+                   &page=<n>&per=<n>
+
+   or, for a query with no operators in it:
+
      GET {endpoint}?q=<free text>
                    &phrase=<exact phrase>   (repeatable)
                    &category=<name>         (repeatable)
@@ -47,14 +52,22 @@ export async function search(parsed, opts) {
   var perPage = Math.max(1, opts.perPage || 6);
 
   var params = new URLSearchParams();
-  // Free terms travel as one `q`; phrases travel separately so the server does
-  // not have to know the quoting rules.
-  if (parsed.terms.length) params.set('q', parsed.terms.join(' '));
-  parsed.phrases.forEach(function (p) { params.append('phrase', p); });
-  parsed.categories.forEach(function (c) { params.append('category', c); });
-  parsed.tags.forEach(function (t) { params.append('tag', t); });
-  if (parsed.since) params.set('since', parsed.since);
-  if (parsed.until) params.set('until', parsed.until);
+  if (parsed.operators && parsed.operators.length && parsed.tree) {
+    /* `OR`, negation and grouping have no flat spelling — the parameters below
+       are a set of clauses the server ANDs — so a query using them travels as
+       the tree itself. Only then: the flat form keeps a query legible in a
+       shared URL, and most queries have no operators in them. */
+    params.set('expr', JSON.stringify(parsed.tree));
+  } else {
+    // Free terms travel as one `q`; phrases travel separately so the server does
+    // not have to know the quoting rules.
+    if (parsed.terms.length) params.set('q', parsed.terms.join(' '));
+    parsed.phrases.forEach(function (p) { params.append('phrase', p); });
+    parsed.categories.forEach(function (c) { params.append('category', c); });
+    parsed.tags.forEach(function (t) { params.append('tag', t); });
+    if (parsed.since) params.set('since', parsed.since);
+    if (parsed.until) params.set('until', parsed.until);
+  }
   params.set('page', String(page));
   params.set('per', String(perPage));
 

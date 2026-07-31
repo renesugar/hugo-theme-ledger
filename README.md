@@ -218,6 +218,9 @@ backend is configured:
 | `since:2026-06-01` | on or after that date |
 | `until:2026-07-01` | strictly before it, so one day is `since:D until:D+1` |
 | an empty query | everything, exactly as `category:All notes` |
+| `sourdough OR rye` | either — `OR` is uppercase only, so the word stays searchable |
+| `bread -sourdough` | negation; needs something positive alongside it |
+| `(rye OR spelt) tag:baking` | grouping |
 | anything else | free text over title, summary and body |
 
 Clauses are ANDed, and anything that does not fit the grammar — `foo:bar`,
@@ -230,10 +233,15 @@ and an empty query are the same request. The search page issues nothing until a
 query is submitted; on a Pagefind site that arrival used to be its single most
 expensive request.
 
+A space is AND, and AND binds tighter than OR: `a b OR c` is `(a AND b) OR c`.
+Parentheses are how you get the other reading.
+
 **Not every backend implements all of it.** Pagefind has filters and phrases but
-no date range, so a `since:`/`until:` query there returns the unbounded set and
-the results view says which clauses were ignored. Bluge implements the whole
-grammar.
+no date range, and its text search takes one term string with punctuation
+stripped — so `OR`, negation and grouping cannot be expressed there either. Those
+queries run as though every clause were ANDed, and the results view names what it
+had to drop rather than answering a different question quietly. Bluge implements
+the whole grammar, receiving the parsed expression as a tree.
 
 **A link is searchable by its destination**, on both backends and whether the
 note shows the URL or hides it behind a label. `page.html` collects the external

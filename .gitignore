@@ -24,6 +24,9 @@ yarn-error.log*
 /.playwright-mcp/
 /screenshots/
 
+# Per-machine Claude Code settings
+/.claude/
+
 # Editors / OS
 *~
 *.swp

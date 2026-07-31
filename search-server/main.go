@@ -4,8 +4,13 @@
 // It implements exactly the contract in
 // assets/js/search/backends/bluge.js:
 //
-//	GET /api/search?q=&category=&tag=&page=&per=
-//	{ "total": N, "results": [ {title, summary, url, category, tags, date, readingTime} ] }
+//	GET /api/search?q=&phrase=&category=&tag=&since=&until=&page=&per=
+//	{ "total": N, "page": 1, "per": 6, "backend": "bluge",
+//	  "results": [ {title, summary, url, category, tags, date, readingTime} ] }
+//
+// category, tag and phrase are repeatable and ANDed. offset/limit are accepted
+// in place of page/per. The grammar itself is never parsed here: query.js splits
+// it client-side and this server receives fields.
 //
 // The index is built from the JSONL that Hugo emits via the `ledgersearch`
 // output format, and rebuilt when that file changes.
@@ -13,16 +18,18 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/blugelabs/bluge"
 	"github.com/blugelabs/bluge/search"
@@ -54,10 +61,113 @@ type result struct {
 }
 
 type response struct {
+	Backend string   `json:"backend"`
+	Query   string   `json:"query"`
 	Total   int      `json:"total"`
 	Page    int      `json:"page"`
 	Per     int      `json:"per"`
+	Offset  int      `json:"offset"`
+	Limit   int      `json:"limit"`
 	Results []result `json:"results"`
+}
+
+// searchParams is one already-parsed query. Repeated fields are ANDed, which is
+// what the grammar in assets/js/search/query.js means by repeating a clause.
+type searchParams struct {
+	expr       *exprNode
+	terms      string
+	phrases    []string
+	categories []string
+	tags       []string
+	since      string
+	until      string
+	page       int
+	per        int
+	offset     int
+	sortByDate bool
+}
+
+// exprNode is one node of the parsed query, mirroring the tree that
+// assets/js/search/query.js builds. The flat fields above cannot express `OR`,
+// negation or grouping; this can, and when a caller sends one it is the whole
+// query. The shapes are:
+//
+//	{"type":"and","nodes":[…]}     {"type":"or","nodes":[…]}
+//	{"type":"not","node":{…}}      {"type":"term","value":"cat"}
+//	{"type":"phrase","value":"…"}  {"type":"field","field":"tag","value":"x"}
+type exprNode struct {
+	Type  string      `json:"type"`
+	Nodes []*exprNode `json:"nodes,omitempty"`
+	Node  *exprNode   `json:"node,omitempty"`
+	Field string      `json:"field,omitempty"`
+	Value string      `json:"value,omitempty"`
+}
+
+// A hand-typed query is a few hundred bytes; these bound what a URL may carry
+// and how deep a crafted tree may recurse the builder.
+const (
+	maxExprBytes = 8 << 10
+	maxExprDepth = 32
+)
+
+func parseExpr(raw string) (*exprNode, error) {
+	if strings.TrimSpace(raw) == "" {
+		return nil, nil
+	}
+	if len(raw) > maxExprBytes {
+		return nil, fmt.Errorf("expr: larger than %d bytes", maxExprBytes)
+	}
+	var node exprNode
+	if err := json.Unmarshal([]byte(raw), &node); err != nil {
+		return nil, errors.New("expr: not valid JSON")
+	}
+	if err := validateExpr(&node, 0); err != nil {
+		return nil, err
+	}
+	return &node, nil
+}
+
+func validateExpr(node *exprNode, depth int) error {
+	if node == nil {
+		return errors.New("expr: empty node")
+	}
+	if depth > maxExprDepth {
+		return fmt.Errorf("expr: nested deeper than %d", maxExprDepth)
+	}
+	switch node.Type {
+	case "and", "or":
+		if len(node.Nodes) == 0 {
+			return fmt.Errorf("expr: %s with no operands", node.Type)
+		}
+		for _, child := range node.Nodes {
+			if err := validateExpr(child, depth+1); err != nil {
+				return err
+			}
+		}
+	case "not":
+		return validateExpr(node.Node, depth+1)
+	case "term", "phrase":
+		if node.Value == "" {
+			return fmt.Errorf("expr: %s with no value", node.Type)
+		}
+	case "field":
+		switch node.Field {
+		case "category", "tag", "since", "until":
+		default:
+			return fmt.Errorf("expr: unknown field %q", node.Field)
+		}
+		if node.Value == "" {
+			return errors.New("expr: field with no value")
+		}
+		if node.Field == "since" || node.Field == "until" {
+			if _, err := time.Parse(dateLayout, node.Value); err != nil {
+				return fmt.Errorf("%s: expected YYYY-MM-DD", node.Field)
+			}
+		}
+	default:
+		return fmt.Errorf("expr: unknown node type %q", node.Type)
+	}
+	return nil
 }
 
 type indexStamp struct {
@@ -70,9 +180,12 @@ type server struct {
 }
 
 const (
-	maxPerPage  = 100
-	batchSize   = 500
-	scanMaxLine = 64 * 1024 * 1024 // notes can be long; the default 64KB is not enough
+	defaultPerPage = 6
+	maxPerPage     = 100
+	maxOffset      = 10_000_000
+	batchSize      = 500
+	scanMaxLine    = 64 * 1024 * 1024 // notes can be long; the default 64KB is not enough
+	dateLayout     = "2006-01-02"
 )
 
 func main() {
@@ -183,10 +296,14 @@ func buildIndex(sourcePath, indexDir string) error {
 			return fmt.Errorf("decode line %d: %w", total+1, err)
 		}
 
+		// SearchTermPositions on all three text fields: without positions a
+		// `"quoted phrase"` query silently matches nothing, because a phrase
+		// query needs to know which terms are adjacent. Positions make the
+		// index larger — that is the price of the phrase clause in the grammar.
 		doc := bluge.NewDocument(record.URL).
-			AddField(bluge.NewTextField("title", record.Title).StoreValue().HighlightMatches()).
-			AddField(bluge.NewTextField("summary", record.Summary).StoreValue()).
-			AddField(bluge.NewTextField("body", record.Body)).
+			AddField(bluge.NewTextField("title", record.Title).StoreValue().SearchTermPositions().HighlightMatches()).
+			AddField(bluge.NewTextField("summary", record.Summary).StoreValue().SearchTermPositions()).
+			AddField(bluge.NewTextField("body", record.Body).SearchTermPositions()).
 			AddField(bluge.NewKeywordField("url", record.URL).StoreValue()).
 			AddField(bluge.NewKeywordField("date", record.Date).StoreValue()).
 			AddField(bluge.NewStoredOnlyField("reading", []byte(strconv.Itoa(record.ReadingTime))))
@@ -200,6 +317,13 @@ func buildIndex(sourcePath, indexDir string) error {
 			if tag = strings.TrimSpace(tag); tag != "" {
 				doc.AddField(bluge.NewKeywordField("tag", tag).StoreValue())
 			}
+		}
+
+		// Emoji as keywords, because the analyser drops them from the text
+		// fields entirely: `😃` produces no term at all. Title as well as body,
+		// since an imported note's own text is its title.
+		for _, symbol := range emojiSymbols(record.Title + " " + record.Body) {
+			doc.AddField(bluge.NewKeywordField("emoji", symbol))
 		}
 		// Sorting newest-first needs a comparable value; the date string is
 		// already zero-padded ISO, so lexical order is chronological order.
@@ -261,33 +385,43 @@ func (s *server) health(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) search(w http.ResponseWriter, r *http.Request) {
-	q := strings.TrimSpace(r.URL.Query().Get("q"))
-	category := strings.TrimSpace(r.URL.Query().Get("category"))
-	tag := strings.TrimSpace(r.URL.Query().Get("tag"))
-	page := bounded(r.URL.Query().Get("page"), 1, 1, 1<<20)
-	per := bounded(r.URL.Query().Get("per"), 6, 1, maxPerPage)
+	started := time.Now()
+	w.Header().Set("X-Ledger-Search-Backend", "bluge")
 
-	query := buildQuery(q, category, tag)
+	params, err := parseParams(r.URL.Query())
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	query := buildQuery(params)
 
 	// Ask for exactly the window this page needs. Bluge still ranks the whole
 	// match set, but only offset+per documents are materialised, which is what
 	// keeps response time flat as the corpus grows.
-	from := (page - 1) * per
-	request := bluge.NewTopNSearch(per, query).
-		SetFrom(from).
+	request := bluge.NewTopNSearch(params.per, query).
+		SetFrom(params.offset).
 		WithStandardAggregations()
-	if q == "" {
+	if params.sortByDate {
 		// Nothing to rank by, so newest-first is more useful than index order.
 		request = request.SortBy([]string{"-sortdate"})
 	}
 
-	iter, err := s.reader.Search(context.Background(), request)
+	iter, err := s.reader.Search(r.Context(), request)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	out := response{Page: page, Per: per, Results: []result{}}
+	described := describe(params)
+	out := response{
+		Backend: "bluge",
+		Query:   described,
+		Page:    params.page,
+		Per:     params.per,
+		Offset:  params.offset,
+		Limit:   params.per,
+		Results: []result{},
+	}
 	match, err := iter.Next()
 	for err == nil && match != nil {
 		out.Results = append(out.Results, toResult(match))
@@ -299,41 +433,305 @@ func (s *server) search(w http.ResponseWriter, r *http.Request) {
 	}
 	out.Total = int(iter.Aggregations().Count())
 
+	elapsed := time.Since(started)
 	w.Header().Set("Cache-Control", "public, max-age=60")
+	w.Header().Set("Server-Timing", fmt.Sprintf("search;dur=%.3f", float64(elapsed.Microseconds())/1000))
 	writeJSON(w, out)
+	// One line per request, so a site that looks like it is not reaching the
+	// backend can be told apart from one that is and found nothing.
+	log.Printf("search query=%q total=%d offset=%d per=%d returned=%d duration=%s",
+		described, out.Total, params.offset, params.per, len(out.Results), elapsed.Round(time.Millisecond))
+}
+
+// parseParams reads the already-split grammar off the query string. It accepts
+// page/per (what bluge.js sends) or offset/limit (for anything else), and
+// resolves both so the response can report either.
+func parseParams(values url.Values) (searchParams, error) {
+	expr, err := parseExpr(values.Get("expr"))
+	if err != nil {
+		return searchParams{}, err
+	}
+	params := searchParams{
+		expr:       expr,
+		terms:      strings.TrimSpace(values.Get("q")),
+		phrases:    nonEmpty(values["phrase"]),
+		categories: nonEmpty(values["category"]),
+		tags:       nonEmpty(values["tag"]),
+		since:      strings.TrimSpace(values.Get("since")),
+		until:      strings.TrimSpace(values.Get("until")),
+	}
+
+	for name, value := range map[string]string{"since": params.since, "until": params.until} {
+		if value == "" {
+			continue
+		}
+		if _, err := time.Parse(dateLayout, value); err != nil {
+			return params, fmt.Errorf("%s: expected YYYY-MM-DD", name)
+		}
+	}
+	if params.since != "" && params.until != "" && params.since >= params.until {
+		return params, errors.New("since: must be earlier than until:")
+	}
+
+	// `limit` is the alias for `per`; whichever is present wins, and per bounds
+	// the response size either way.
+	perRaw := values.Get("per")
+	if perRaw == "" {
+		perRaw = values.Get("limit")
+	}
+	params.per = bounded(perRaw, defaultPerPage, 1, maxPerPage)
+
+	if raw := values.Get("offset"); raw != "" {
+		params.offset = bounded(raw, 0, 0, maxOffset)
+		params.page = params.offset/params.per + 1
+	} else {
+		params.page = bounded(values.Get("page"), 1, 1, 1<<20)
+		params.offset = (params.page - 1) * params.per
+	}
+
+	// Newest first for every query, not only filter-only ones. An archive is read
+	// chronologically: relevance ordering puts the most recent note at an
+	// unpredictable position, and in a long result set the visitor would have to
+	// page to the end to find it. It also keeps term.html's server-rendered first
+	// page and this server's second page in one sequence for every query shape.
+	// `sort=score` is the escape hatch for a caller that wants ranking.
+	params.sortByDate = values.Get("sort") != "score" && values.Get("sort") != "relevance"
+
+	return params, nil
 }
 
 // buildQuery mirrors the grammar already parsed client-side in
-// assets/js/search/query.js — this server never re-parses `category:` or
-// `tag:` prefixes, it receives them as separate parameters.
-func buildQuery(text, category, tag string) bluge.Query {
+// assets/js/search/query.js — this server never re-parses `category:`, `tag:`
+// or quotes, it receives them as separate parameters. Repeated values are
+// ANDed.
+func buildQuery(params searchParams) bluge.Query {
+	if params.expr != nil {
+		if query := buildExpr(params.expr); query != nil {
+			return query
+		}
+		return bluge.NewMatchAllQuery()
+	}
+	return buildFlatQuery(params)
+}
+
+// buildExpr walks the tree. Bluge has no standalone negation — it is a clause
+// of a boolean query — so a `not` is only ever built as the MustNot of the
+// boolean containing it, which is why the `and` case handles its negated
+// children rather than recursing blindly.
+func buildExpr(node *exprNode) bluge.Query {
+	switch node.Type {
+	case "and":
+		conjunction := bluge.NewBooleanQuery()
+		for _, child := range node.Nodes {
+			if child.Type == "not" {
+				if inner := buildExpr(child.Node); inner != nil {
+					conjunction.AddMustNot(inner)
+				}
+				continue
+			}
+			if query := buildExpr(child); query != nil {
+				conjunction.AddMust(query)
+			}
+		}
+		return conjunction
+
+	case "or":
+		disjunction := bluge.NewBooleanQuery().SetMinShould(1)
+		for _, child := range node.Nodes {
+			// A negated branch needs nothing special: the `not` case below
+			// already builds "everything without this", which is what
+			// `a OR -b` asks that branch to contribute. Wrapping it again in a
+			// match-all-minus is a double negation, and reads as `a OR b`.
+			if query := buildExpr(child); query != nil {
+				disjunction.AddShould(query)
+			}
+		}
+		return disjunction
+
+	case "not":
+		// Only reached when a negation is the whole query. Bluge answers a
+		// MustNot-only boolean directly.
+		if inner := buildExpr(node.Node); inner != nil {
+			return bluge.NewBooleanQuery().AddMustNot(inner)
+		}
+		return nil
+
+	case "term":
+		if isEmojiTerm(node.Value) {
+			return emojiQuery(node.Value)
+		}
+		any := bluge.NewBooleanQuery().SetMinShould(1)
+		any.AddShould(bluge.NewMatchQuery(node.Value).SetField("title").SetBoost(5))
+		any.AddShould(bluge.NewMatchQuery(node.Value).SetField("summary").SetBoost(2))
+		any.AddShould(bluge.NewMatchQuery(node.Value).SetField("body"))
+		return any
+
+	case "phrase":
+		any := bluge.NewBooleanQuery().SetMinShould(1)
+		any.AddShould(bluge.NewMatchPhraseQuery(node.Value).SetField("title").SetBoost(5))
+		any.AddShould(bluge.NewMatchPhraseQuery(node.Value).SetField("summary").SetBoost(2))
+		any.AddShould(bluge.NewMatchPhraseQuery(node.Value).SetField("body"))
+		return any
+
+	case "field":
+		switch node.Field {
+		case "category":
+			return bluge.NewTermQuery(node.Value).SetField("category")
+		case "tag":
+			return bluge.NewTermQuery(node.Value).SetField("tag")
+		case "since":
+			return bluge.NewTermRangeInclusiveQuery(node.Value, "", true, false).
+				SetField("sortdate")
+		case "until":
+			return bluge.NewTermRangeInclusiveQuery("", node.Value, true, false).
+				SetField("sortdate")
+		}
+	}
+	return nil
+}
+
+func buildFlatQuery(params searchParams) bluge.Query {
 	conjunction := bluge.NewBooleanQuery()
-	filtered := false
+	clauses := 0
 
-	if category != "" {
+	// category and tag are keyword fields, matched exactly.
+	for _, category := range params.categories {
 		conjunction.AddMust(bluge.NewTermQuery(category).SetField("category"))
-		filtered = true
+		clauses++
 	}
-	if tag != "" {
+	for _, tag := range params.tags {
 		conjunction.AddMust(bluge.NewTermQuery(tag).SetField("tag"))
-		filtered = true
+		clauses++
 	}
 
-	if text != "" {
-		// Title matches outrank summary, which outranks body.
-		any := bluge.NewBooleanQuery()
-		any.AddShould(bluge.NewMatchQuery(text).SetField("title").SetBoost(5))
-		any.AddShould(bluge.NewMatchQuery(text).SetField("summary").SetBoost(2))
-		any.AddShould(bluge.NewMatchQuery(text).SetField("body"))
-		any.SetMinShould(1)
+	// Emoji are keywords, not text: the analyser drops them from the text
+	// fields, so they are separated out before the rest is handed over as one
+	// string. A query with no emoji in it is unaffected.
+	words, symbols := splitEmoji(params.terms)
+	for _, symbol := range symbols {
+		conjunction.AddMust(emojiQuery(symbol))
+		clauses++
+	}
+
+	// Title matches outrank summary, which outranks body — for terms and for
+	// phrases alike.
+	if words != "" {
+		any := bluge.NewBooleanQuery().SetMinShould(1)
+		any.AddShould(bluge.NewMatchQuery(words).SetField("title").SetBoost(5))
+		any.AddShould(bluge.NewMatchQuery(words).SetField("summary").SetBoost(2))
+		any.AddShould(bluge.NewMatchQuery(words).SetField("body"))
 		conjunction.AddMust(any)
-		filtered = true
+		clauses++
+	}
+	for _, phrase := range params.phrases {
+		any := bluge.NewBooleanQuery().SetMinShould(1)
+		any.AddShould(bluge.NewMatchPhraseQuery(phrase).SetField("title").SetBoost(5))
+		any.AddShould(bluge.NewMatchPhraseQuery(phrase).SetField("summary").SetBoost(2))
+		any.AddShould(bluge.NewMatchPhraseQuery(phrase).SetField("body"))
+		conjunction.AddMust(any)
+		clauses++
 	}
 
-	if !filtered {
+	// A lexical range over the sortable ISO date: zero-padded dates sort
+	// chronologically as text, so this needs no separate datetime field.
+	// `since` is inclusive and `until` exclusive, which makes a single day
+	// since:D until:D+1.
+	if params.since != "" || params.until != "" {
+		conjunction.AddMust(
+			bluge.NewTermRangeInclusiveQuery(params.since, params.until, true, false).
+				SetField("sortdate"))
+		clauses++
+	}
+
+	if clauses == 0 {
 		return bluge.NewMatchAllQuery()
 	}
 	return conjunction
+}
+
+// describe rebuilds the grammar the visitor typed, for the response echo and
+// the log line. The client sends fields, so there is no raw query to quote.
+func describe(params searchParams) string {
+	if params.expr != nil {
+		return describeExpr(params.expr, false)
+	}
+	return describeFlat(params)
+}
+
+// describeExpr renders a node in the grammar's own syntax, so the echo and the
+// log show how the query was understood rather than only what was sent.
+// `group` asks for brackets when the context binds tighter than the node does.
+func describeExpr(node *exprNode, group bool) string {
+	switch node.Type {
+	case "and":
+		parts := make([]string, 0, len(node.Nodes))
+		for _, child := range node.Nodes {
+			// An OR inside an AND needs brackets; an AND inside an OR does
+			// not, because AND already binds tighter.
+			parts = append(parts, describeExpr(child, child.Type == "or"))
+		}
+		return maybeGroup(strings.Join(parts, " "), group)
+	case "or":
+		parts := make([]string, 0, len(node.Nodes))
+		for _, child := range node.Nodes {
+			parts = append(parts, describeExpr(child, false))
+		}
+		return maybeGroup(strings.Join(parts, " OR "), group)
+	case "not":
+		return "-" + describeExpr(node.Node, node.Node.Type == "and" || node.Node.Type == "or")
+	case "phrase":
+		return strconv.Quote(node.Value)
+	case "field":
+		return clause(node.Field, node.Value)
+	}
+	return node.Value
+}
+
+func maybeGroup(text string, group bool) string {
+	if group {
+		return "(" + text + ")"
+	}
+	return text
+}
+
+func describeFlat(params searchParams) string {
+	var parts []string
+	for _, category := range params.categories {
+		parts = append(parts, clause("category", category))
+	}
+	for _, tag := range params.tags {
+		parts = append(parts, clause("tag", tag))
+	}
+	if params.since != "" {
+		parts = append(parts, "since:"+params.since)
+	}
+	if params.until != "" {
+		parts = append(parts, "until:"+params.until)
+	}
+	for _, phrase := range params.phrases {
+		parts = append(parts, strconv.Quote(phrase))
+	}
+	if params.terms != "" {
+		parts = append(parts, params.terms)
+	}
+	return strings.Join(parts, " ")
+}
+
+func clause(field, value string) string {
+	if strings.ContainsAny(value, " \t\"") {
+		return field + ":" + strconv.Quote(value)
+	}
+	return field + ":" + value
+}
+
+func nonEmpty(values []string) []string {
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }
 
 func toResult(match *search.DocumentMatch) result {
@@ -384,4 +782,78 @@ func writeJSON(w http.ResponseWriter, value any) {
 	if err := json.NewEncoder(w).Encode(value); err != nil {
 		log.Printf("write response: %v", err)
 	}
+}
+
+// emojiSymbols returns the distinct emoji in a string, in order of first
+// appearance. The standard analyser produces no term at all for one — `😃`
+// yields nothing, `happy 😃 day` yields [happy day] — so they are indexed as
+// keywords, the same shape `tag` uses.
+//
+// Rune by rune, so a joined sequence such as 👨‍👩‍👧 is found by any of its
+// parts. Joiners, variation selectors and skin-tone modifiers are not symbols
+// in their own right and are skipped, which makes 👍🏽 and 👍 the same search.
+func emojiSymbols(text string) []string {
+	var out []string
+	seen := make(map[rune]bool)
+	for _, r := range text {
+		// Symbol-other, above the punctuation blocks: emoji live there, while
+		// © and ® sit below it and are ordinary characters in prose.
+		if r < 0x2000 || !unicode.Is(unicode.So, r) || seen[r] {
+			continue
+		}
+		seen[r] = true
+		out = append(out, string(r))
+	}
+	return out
+}
+
+// isEmojiTerm reports whether a query term is made only of emoji, which is when
+// it belongs to the keyword field rather than the text fields.
+func isEmojiTerm(term string) bool {
+	found := false
+	for _, r := range term {
+		if r < 0x2000 || !unicode.Is(unicode.So, r) {
+			if r == 0x200D || r == 0xFE0F || unicode.Is(unicode.Sk, r) {
+				continue
+			}
+			return false
+		}
+		found = true
+	}
+	return found
+}
+
+// emojiQuery matches an emoji term against the keyword field, requiring every
+// symbol in it: `😃😡` means a note carrying both.
+func emojiQuery(term string) bluge.Query {
+	symbols := emojiSymbols(term)
+	if len(symbols) == 0 {
+		return nil
+	}
+	if len(symbols) == 1 {
+		return bluge.NewTermQuery(symbols[0]).SetField("emoji")
+	}
+	conjunction := bluge.NewBooleanQuery()
+	for _, symbol := range symbols {
+		conjunction.AddMust(bluge.NewTermQuery(symbol).SetField("emoji"))
+	}
+	return conjunction
+}
+
+// splitEmoji divides free text into the words the analyser can index and the
+// emoji-only terms it cannot.
+func splitEmoji(terms string) (words string, symbols []string) {
+	if terms == "" {
+		return "", nil
+	}
+	fields := strings.Fields(terms)
+	kept := fields[:0]
+	for _, field := range fields {
+		if isEmojiTerm(field) {
+			symbols = append(symbols, field)
+			continue
+		}
+		kept = append(kept, field)
+	}
+	return strings.Join(kept, " "), symbols
 }

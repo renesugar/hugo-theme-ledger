@@ -54,12 +54,20 @@ disableKinds = ["rss"]
     allNotesLabel = "All notes"
     maxTerms = 200
 
+  [params.post]
+    heroPlaceholder = true
+
   [params.search]
     backend = "pagefind"
     bundlePath = "/pagefind/pagefind.js"
+    healthEndpoint = "/api/health"
 
+  # Both caps. The section cap arrived after the 10k/100k/500k rows were
+  # measured, and without it /notes/ paginates the whole corpus: at 500k that is
+  # ~83,000 pager directories the older rows silently paid for.
   [params.scale]
     maxHomePagerPages = 500
+    maxSectionPagerPages = 500
 
   [params.taxonomy]
     categoryPlural = "categories"
@@ -76,7 +84,7 @@ TOML
 # run is long enough that you want it on its own), and overwriting would discard
 # the smaller tiers that the comparison depends on.
 if [ ! -s "$OUT/results.tsv" ]; then
-  printf 'when\tnotes\tbuild_s\tbuild_peak_mb\tpagefind_s\tpublic_mb\tindex_mb\thtml_files\thome_kb\tnote_kb\n' \
+  printf 'when\tnotes\tbuild_s\tbuild_peak_mb\tpagefind_s\tpublic_mb\tindex_mb\thtml_files\thome_kb\tnote_kb\thome_pagers\tsection_pagers\tterm_dirs\n' \
     > "$OUT/results.tsv"
 fi
 
@@ -105,9 +113,17 @@ for N in "${TIERS[@]}"; do
   HOME_KB=$(( $(stat -c%s "$SITE/public/index.html") / 1024 ))
   NOTE_KB=$(( $(stat -c%s "$SITE/public/notes/note-0/index.html") / 1024 ))
 
-  printf '%s\t%s\t%s\t%s\t%.1f\t%s\t%s\t%s\t%s\t%s\n' \
+  # What the caps are for. Pager directories are the surfaces that grow with the
+  # corpus rather than with the design, so they are worth counting rather than
+  # inferring from the total.
+  HOME_PAGERS=$(find "$SITE/public/page" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+  SECTION_PAGERS=$(find "$SITE/public/notes/page" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+  TERM_DIRS=$(find "$SITE/public/tags" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | wc -l)
+
+  printf '%s\t%s\t%s\t%s\t%.1f\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
     "$(date -u +%Y-%m-%dT%H:%MZ)" "$N" "$BUILD_S" "$BUILD_MB" "$PF_S" "$PUBLIC_MB" \
-    "$INDEX_MB" "$HTML_FILES" "$HOME_KB" "$NOTE_KB" | tee -a "$OUT/results.tsv"
+    "$INDEX_MB" "$HTML_FILES" "$HOME_KB" "$NOTE_KB" "$HOME_PAGERS" "$SECTION_PAGERS" \
+    "$TERM_DIRS" | tee -a "$OUT/results.tsv"
 done
 
 echo

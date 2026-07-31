@@ -1,0 +1,13 @@
+[mediaTypes."application/jsonl"]
+  suffixes = ["jsonl"]
+[outputFormats.ledgersearch]
+  mediaType = "application/jsonl"
+  baseName = "search-source"
+  isPlainText = true
+  notAlternative = true
+[outputs]
+  home = ["html", "rss", "ledgersearch"]
+  section = ["html"]
+  term = ["html"]
+[params.search]
+  backend = "auto"

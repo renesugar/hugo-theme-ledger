@@ -75,17 +75,74 @@ page and hands the rest to the search backend.
 
 ## Search
 
-The grammar (`category:`, `tag:`, free text) is parsed once, backend-agnostically,
-in `assets/js/search/query.js`. Backends implement two methods:
+The grammar — `category:`, `tag:` (repeatable), `since:`, `until:`, quoted
+phrases, free text — is parsed once, backend-agnostically, in
+`assets/js/search/query.js`, into:
+
+```js
+{ categories[], tags[], phrases[], terms[], since, until, text, matchAll }
+```
+
+Backends implement two methods:
 
 ```js
 init(config)                    -> Promise<void>
-search(parsed, {page, perPage}) -> Promise<{total, page, pages, results}>
+search(parsed, {page, perPage}) -> Promise<{total, page, pages, results,
+                                            unsupported}>
 ```
 
 Add one beside `pagefind.js`/`bluge.js`, register it in the `BACKENDS` map in
 `main.js`, select it with `params.search.backend`. Do not re-parse the grammar
 in a backend.
+
+`orama.js` searches an in-memory index and is for small sites only — 33–223 MB
+downloaded before the first result at 25k notes. `PERFORMANCE.md` records why it
+was not promoted. **Its library is built as its own asset and imported from a
+runtime URL**, not imported statically: a static import inlines Orama into the
+shared search bundle, 8.9 KB → 88.2 KB, for every site including Pagefind ones.
+
+`flexsearch.js` is the other measured-and-rejected client-side engine, with a
+`memory` and an `indexeddb` configuration. Same runtime-URL rule as Orama. Its
+IndexedDB path needs a population probe that is a **tag search for a value
+`meta.json` records as present** — an empty tag filter matches nothing whether or
+not the index is populated, and `db.has()` throws on a mounted-but-unqueried store,
+so both of those silently re-download the whole index on every visit.
+
+`auto.js` is not a third engine: it probes `/api/health` once per page load and
+then delegates every call to `bluge.js` or `pagefind.js`. A build using it needs
+both indexes. Its one piece of real behaviour is the one-way downgrade when a
+server dies mid-session — do not add a re-probe there; a visitor typing queries
+is not the place to retry a server.
+
+**A backend that cannot honour a clause must name it in `unsupported`**, and the
+search view tells the visitor. Pagefind has filters and phrases but no date
+range; silently dropping `since:` would return the unbounded set and look like an
+answer.
+
+**Every site-absolute URL goes through `_partials/site-url.html`.** `relURL`
+silently drops the baseURL's path when its argument starts with a slash:
+`"/search/" | relURL` is `/search/`, while `"search/" | relURL` is
+`/archive/search/`. Every link, asset and fetch URL in the theme is
+site-absolute, so all of them were wrong on a project site — the normal case on
+GitHub Pages. Do not write `relURL` with a leading slash; the partial takes
+either form and passes absolute URLs through.
+
+That includes the runtime URLs in the search config (`bundlePath`, `endpoint`,
+`healthEndpoint`) and `siteRoot`, which backends resolve stored result URLs
+against. Pagefind additionally needs `baseUrl` in `options()`, or every result
+links to the domain root.
+
+**Every generated query clause goes through `_partials/search-clause.html`.**
+The grammar tokenises on whitespace, so `category:Field notes` parses as a
+category plus a stray term — the partial quotes values that need it. Six
+templates build queries and all six must agree with `query.js`; that is why the
+rule lives in one partial rather than in a `printf` in each.
+
+**Phrase queries need term positions in the index.** `search-server` indexes
+`title`, `summary` and `body` with `SearchTermPositions()`. Drop that and
+`"quoted phrase"` matches nothing at all rather than failing loudly. Positions
+also make the index bigger, so the Bluge index sizes in `PERFORMANCE.md`
+(measured before phrases existed) understate a phrase-capable index.
 
 **Pagefind indexing is scoped by a single `data-pagefind-body`** on note
 articles in `page.html`. Pagefind indexes *only* marked elements once any exist,
@@ -93,11 +150,49 @@ which is what keeps the shared header/sidebar/footer out of every excerpt and
 keeps `about.md` and `search.md` out of the index. Adding that attribute to
 another layout changes what the whole site indexes.
 
-**Ordering must agree between Hugo and the backend.** `term.html` server-renders
-page 1 in Hugo's date order; the backend serves page 2. Notes carry
-`data-pagefind-sort="date"` and filter-only queries request a date sort so the
-two are slices of one sequence. Remove that and pages will repeat and skip
-notes.
+**Anything inside it that is not note text needs `data-pagefind-ignore`.** The
+back link and the hero placeholder are inside the article, and without the
+attribute Pagefind indexed "← back to results" and "hero image · 1600×640" once
+per note and put them at the front of result excerpts. Whatever is added to
+`page.html` inside the article, decide which side of that line it is on.
+
+**Link destinations are indexed from a block at the end of the note.**
+`page.html` collects the external URLs in `.Content` into a hidden
+`<p class="ledger-link-index">`, because Pagefind indexes visible text and
+`[label](https://host/path)` puts the URL only in the `href` — most links, in a
+link-heavy archive. Two things about the shape are deliberate and easy to undo
+by accident:
+
+- **At the end, not on the links.** `data-pagefind-index-attrs="href"` on each
+  anchor indexes the same text and was tried first, but Pagefind draws excerpts
+  in document order, so inline URLs splice themselves between sentences and a
+  plain prose search returns an excerpt full of links. Collected at the end they
+  are excerpted only when a URL is what matched.
+- **`hidden`, not `ledger-sr-only`.** Pagefind indexes hidden elements, and a
+  screen reader should not read out a wall of URLs.
+
+External destinations only, matching `_link_target_url()` in movenotes'
+`obsidian2site.py`; the two backends have to agree on what a searchable link is.
+Costs 17% of the Pagefind index and 1.2% of the published site — measured in
+`PERFORMANCE.md`.
+
+**Every query returns newest first.** Not a ranking preference — an invariant
+three things depend on:
+
+- `term.html` server-renders page 1 in Hugo's date order and the backend serves
+  page 2. If a query shape came back ranked instead, the two would be slices of
+  different sequences and pages would repeat and skip notes.
+- An archive is read chronologically. In relevance order the most recent note
+  lands at an unpredictable position, and in a long result set the visitor would
+  have to page to the end to find it.
+- The four backends must agree, or the same query reorders when a site switches
+  backend.
+
+Implemented in each adapter (`sort: {date:'desc'}`, `sortBy`, an explicit
+`merged.sort`) and in both Go servers, unconditionally; notes carry
+`data-pagefind-sort="date"` for it. `sort=score` (or `sort=relevance`) on the
+server backends is the escape hatch for a caller that wants ranking — nothing in
+the theme sends it.
 
 ## The number-windowing rule exists three times
 
@@ -113,11 +208,19 @@ change all three, and check the sequences still match.
 ## Building and testing
 
 ```bash
+npm test                 # node --test over assets/js/**/*.test.js
 npm run build            # hugo, no search index
 npm run preview          # hugo + pagefind + static serve — use this for search
 npm run dev              # hugo server; SEARCH DOES NOT WORK (no index)
 scripts/bench.sh 10000   # scale tier; appends to bench/out/results.tsv
 ```
+
+**The query grammar has tests; use them.** `assets/js/search/query.js` is the
+one piece of pure logic every backend depends on, and no build step exercises
+it — Hugo will happily ship a parser that reads `cat OR dog` as three ANDed
+words. `query.test.js` pins the operator-free shapes against the flat fields the
+adapters read, so a grammar change that alters an ordinary query fails there
+rather than in someone's archive.
 
 **A change is not verified until it has been driven in a browser.** Markup that
 looks right has been wrong several times in this repo's history — the pagination

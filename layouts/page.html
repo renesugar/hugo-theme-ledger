@@ -12,12 +12,24 @@
 {{- $limit := int (site.Params.taxonomyPageLimit | default 25) -}}
 {{- $catPlural := site.Params.taxonomy.categoryPlural | default "categories" -}}
 {{- $tagPlural := site.Params.taxonomy.tagPlural | default "tags" -}}
-{{- $searchURL := "/search/" | relURL -}}
+{{- $searchURL := partial "site-url.html" "/search/" -}}
 
 {{- $category := index (.Params.categories | default slice) 0 -}}
 {{- $tags := .Params.tags | default slice -}}
 {{- $reading := .Params.readingTime | default .ReadingTime -}}
-{{- $summary := or .Params.summary .Summary -}}
+{{- /* A written standfirst only. Hugo's auto `.Summary` is the first words of
+       the body, which on this layout sits directly above the same words —
+       result cards still fall back to it, where an excerpt is useful. */ -}}
+{{- $summary := .Params.summary -}}
+
+{{- /* Notes imported from a source that already carries its own heading and
+       timestamp in the body — a Twitter/X archive, say — would otherwise show
+       both twice. `ledgerHideTitle` keeps the h1 in the document outline for
+       assistive technology but takes it off the screen; `ledgerHideMeta` drops
+       the category/date row. Both are per-note front matter, because a vault
+       usually holds a mix. */ -}}
+{{- $hideTitle := .Params.ledgerHideTitle | default false -}}
+{{- $hideMeta := .Params.ledgerHideMeta | default false -}}
 
 <article class="ledger-post" {{ if $indexable }}data-pagefind-body{{ end }}>
 
@@ -46,15 +58,21 @@
   {{- end }}
 
   {{/* Falls back to home when there is no same-origin referrer to return to;
-       the script upgrades it to a real history step when there is one. */}}
-  <a class="ledger-post-back" href="{{ site.Home.RelPermalink }}" data-ledger-back>&larr; back to results</a>
+       the script upgrades it to a real history step when there is one.
+
+       data-pagefind-ignore because it is furniture, not content: without it
+       "← back to results" is indexed on every note and turns up at the front of
+       result excerpts. */}}
+  <a class="ledger-post-back" href="{{ site.Home.RelPermalink }}" data-ledger-back data-pagefind-ignore>&larr; back to results</a>
 
   <header class="ledger-post-head">
+    {{- if not $hideMeta }}
     <div class="ledger-post-meta">
       {{- with $category }}
       {{- $url := "" -}}
       {{- with site.GetPage (printf "/%s/%s" $catPlural (urlize .)) -}}
-        {{- $url = cond (gt (len .Pages) $limit) (printf "%s?q=%s" $searchURL (printf "category:%s" $category | urlquery)) .RelPermalink -}}
+        {{- $clause := partial "search-clause.html" (dict "field" "category" "value" $category) -}}
+        {{- $url = cond (gt (len .Pages) $limit) (printf "%s?q=%s" $searchURL ($clause | urlquery)) .RelPermalink -}}
       {{- end }}
       <a class="ledger-post-category" href="{{ or $url $searchURL }}">{{ . }}</a>
       {{- end }}
@@ -63,8 +81,9 @@
         {{- with $reading }} · {{ . }} min read{{ end -}}
       </span>
     </div>
+    {{- end }}
 
-    <h1>{{ .Title }}</h1>
+    <h1{{ if $hideTitle }} class="ledger-sr-only"{{ end }}>{{ .Title }}</h1>
 
     {{- with $summary }}
     <p class="ledger-post-standfirst">{{ . | plainify }}</p>
@@ -72,26 +91,78 @@
   </header>
 
   {{- /* Front-matter `image`: a page-bundle resource name, a site-relative
-         path, or an absolute URL. Without one, the striped block stands in. */ -}}
+         path, or an absolute URL. Without one, the striped block stands in —
+         unless params.post.heroPlaceholder is off, which is what a generated
+         archive of short notes wants: 100k striped rectangles are noise, not a
+         design. */ -}}
   {{- $hero := "" -}}
   {{- with .Params.image -}}
     {{- with $.Resources.GetMatch . -}}
       {{- $hero = .RelPermalink -}}
     {{- else -}}
-      {{- $hero = cond (hasPrefix . "http") . (relURL .) -}}
+      {{- $hero = partial "site-url.html" . -}}
     {{- end -}}
   {{- end }}
-  <div class="ledger-hero" data-card>
+  {{- /* Not `| default true`: Hugo's `default` treats false as absent, and the
+         only reason to set this param is to set it to false. */ -}}
+  {{- $placeholder := ne ((site.Params.post | default dict).heroPlaceholder) false -}}
+  {{- /* data-pagefind-ignore: the placeholder's label is decoration, and
+         without this "hero image · 1600×640" is indexed once per note and
+         appears in excerpts. */ -}}
+  {{- if or $hero $placeholder }}
+  <div class="ledger-hero" data-card data-pagefind-ignore>
     {{- if $hero }}
     <img src="{{ $hero }}" alt="{{ .Params.imageAlt | default "" }}" loading="lazy" width="1600" height="640">
     {{- else }}
     <span class="ledger-hero-label">hero image · 1600×640</span>
     {{- end }}
   </div>
+  {{- end }}
 
   <div class="ledger-prose">
     {{ .Content }}
   </div>
+
+  {{- /* Every external destination this note links, as searchable text.
+
+         Pagefind indexes visible text, so a bare URL — which renders as its own
+         label — is already findable, while `[a label](https://host/path)` is
+         not: the destination exists only in the `href`. In a link-heavy archive
+         that is most of the links, and it left the static backend unable to
+         answer a question the server backend could.
+
+         At the end of the article and not on the links themselves, which
+         `data-pagefind-index-attrs="href"` would also have achieved. Pagefind
+         draws excerpts from indexed text in document order, so an inline
+         attribute splices URLs between the sentences around it and a search for
+         ordinary prose returns an excerpt full of links. Collected here, they
+         are only excerpted when a URL is what matched — the same reasoning that
+         puts them at the end of `body` and out of `summary` on the Bluge side.
+
+         External only: an internal link points at a note that is itself
+         indexed, so its path would add the section name and a slug to every
+         page linking one. obsidian2site.py's `_link_target_url()` draws the
+         line in the same place, so the two backends agree.
+
+         The full URLs and nothing else. movenotes additionally indexes each
+         host's parent domains for Bluge, whose analyser keeps a host whole, so
+         `www.sciencedirect.com` is one term there and `sciencedirect.com`
+         matches nothing without the alias. Pagefind splits on the dots at both
+         index and query time — verified with the aliases removed: `nih.gov`,
+         `nlm.nih.gov` and `sciencedirect.com` all still find the note that
+         links `www.ncbi.nlm.nih.gov`. Adding them here would only pay for terms
+         Pagefind already derives. */ -}}
+  {{- if $indexable }}
+  {{- $links := slice -}}
+  {{- range findRE `https?://[^"'\s<>]+` .Content -}}
+    {{- $links = $links | append . -}}
+  {{- end -}}
+  {{- with ($links | uniq) }}
+  {{- /* hidden, not a screen-reader class: this is text for an indexer, and
+         reading a wall of URLs aloud would be worse than not having it. */}}
+  <p class="ledger-link-index" hidden>{{ delimit . " " }}</p>
+  {{- end }}
+  {{- end }}
 
   {{- with $tags }}
   <footer class="ledger-post-tags">
@@ -101,7 +172,7 @@
     {{- with site.GetPage (printf "/%s/%s" $tagPlural (urlize .)) -}}
       {{- $url = cond (gt (len .Pages) $limit) "" .RelPermalink -}}
     {{- end -}}
-    {{- if not $url }}{{ $url = printf "%s?q=%s" $searchURL (printf "tag:%s" . | urlquery) }}{{ end }}
+    {{- if not $url }}{{ $url = printf "%s?q=%s" $searchURL (partial "search-clause.html" (dict "field" "tag" "value" .) | urlquery) }}{{ end }}
     <a class="ledger-post-tag" href="{{ $url }}">#{{ . }}</a>
     {{- end }}
   </footer>

@@ -3,11 +3,11 @@
 {{- $active := "" -}}
 {{- if .IsHome -}}
   {{- $active = "home" -}}
-{{- else if hasPrefix .RelPermalink ("/tags/" | relURL) -}}
+{{- else if hasPrefix .RelPermalink (partial "site-url.html" "/tags/") -}}
   {{- $active = "tags" -}}
-{{- else if hasPrefix .RelPermalink ("/about/" | relURL) -}}
+{{- else if hasPrefix .RelPermalink (partial "site-url.html" "/about/") -}}
   {{- $active = "about" -}}
-{{- else if hasPrefix .RelPermalink ("/search/" | relURL) -}}
+{{- else if hasPrefix .RelPermalink (partial "site-url.html" "/search/") -}}
   {{- $active = "search" -}}
 {{- end -}}
 <!DOCTYPE html>

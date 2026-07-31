@@ -17,7 +17,7 @@
 {{- $max := .max -}}
 {{- $order := .order -}}
 {{- $prefix := .prefix -}}
-{{- $searchURL := "/search/" | relURL -}}
+{{- $searchURL := partial "site-url.html" "/search/" -}}
 
 {{- $terms := slice -}}
 {{- with site.GetPage (printf "/%s" $key) -}}
@@ -27,7 +27,7 @@
     {{- $over := gt $count $limit -}}
     {{- $url := .RelPermalink -}}
     {{- if $over -}}
-      {{- $url = printf "%s?q=%s" $searchURL (printf "%s:%s" $prefix $name | urlquery) -}}
+      {{- $url = printf "%s?q=%s" $searchURL (partial "search-clause.html" (dict "field" $prefix "value" $name) | urlquery) -}}
     {{- end -}}
     {{- /* `path` is always the archive URL, even when `url` routes to search,
            so the sidebar can still mark the row active for a visitor who lands

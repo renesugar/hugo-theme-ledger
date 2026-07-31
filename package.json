@@ -9,9 +9,13 @@
     "build": "hugo --source exampleSite --themesDir ../..",
     "index": "pagefind --site exampleSite/public",
     "build:indexed": "npm run build && npm run index",
-    "preview": "npm run build:indexed && npx --yes serve exampleSite/public"
+    "preview": "npm run build:indexed && npx --yes serve exampleSite/public",
+    "test": "node --test 'assets/js/**/*.test.js'"
   },
   "devDependencies": {
+    "@orama/orama": "^3.1.18",
+    "@orama/plugin-data-persistence": "^3.1.18",
+    "flexsearch": "^0.8.212",
     "pagefind": "^1.5.0"
   }
 }

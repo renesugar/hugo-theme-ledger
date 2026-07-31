@@ -1,0 +1,23 @@
+{{- /* Renders one `field:value` clause of the search grammar. Returns a string.
+
+       Params: field ("category" | "tag" | "since" | "until"), value.
+
+       This exists because the grammar tokenises on whitespace: a value that
+       contains a space must be quoted, or `category:Field notes` parses as the
+       category "Field" plus the free-text term "notes". Six templates generate
+       queries (post, term archive, tags grid, sidebar, sidebar terms asset,
+       home), and the quoting rule has to agree with
+       assets/js/search/query.js on every one of them — so it lives here and
+       nowhere else.
+
+       Values are quoted only when they need it, because the clause is shown to
+       the visitor in the search bar.
+
+       One `return`, as the last statement: Hugo allows a partial exactly one. */ -}}
+
+{{- $value := .value | default "" -}}
+{{- $clause := printf "%s:%s" .field $value -}}
+{{- if or (strings.Contains $value " ") (strings.Contains $value "\"") -}}
+  {{- $clause = printf "%s:%q" .field $value -}}
+{{- end -}}
+{{- return $clause -}}

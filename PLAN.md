@@ -28,6 +28,7 @@ ordinary build instead of only in production:
 | 16 notes at 6/page | multi-page pagination, disabled ends |
 | `proxmox-backup-rotation/` page bundle + `cover.svg` | hero image from a bundle resource |
 | `zfs-scrub-schedule` + `/img/hero-sample.svg` | hero image from a site-relative path |
+| `captured-thread-reply` | `ledgerHideTitle` / `ledgerHideMeta`, and two shared tags for `tag:a tag:b` |
 | every other note | the striped hero fallback |
 
 Branches that cannot ship in the corpus — the absolute-URL hero, the home pager
@@ -224,3 +225,255 @@ already hit in this repo.
 `README.md` — install, required config, content model, full `[params]`
 reference, both search backends and how to choose, development and
 benchmarking, accessibility.
+
+### 16. Grammar, imported-note switches, and one Bluge contract  ✅
+Prerequisites for using this theme as the output of
+`/home/renes/projects/movenotes-v3/obsidian2site.py`, whose generator supports a
+larger query grammar than the theme did and whose server spoke a different HTTP
+shape. Planned in that repo's `LEDGER_MIGRATION_PLAN.md` (step 21).
+
+**Grammar.** `query.js` now tokenises rather than matching one leading clause:
+repeatable `tag:`/`category:`, `since:`/`until:` date bounds, quoted phrases and
+free text, all ANDed. The parsed shape is
+`{categories[], tags[], phrases[], terms[], since, until, text, matchAll}`.
+
+Tokenising means a value containing a space needs quoting, which the old
+"remainder of the string is the value" rule did not. Every template that
+generates a clause — six of them — now goes through
+`_partials/search-clause.html`, which quotes only when necessary. That partial
+exists so the quoting rule cannot drift from `query.js`.
+
+**Unsupported clauses are reported, not dropped.** A backend returns the clause
+names it could not honour in `unsupported`, and the search view says so.
+Pagefind returns `['since:', 'until:']`: it has filters and phrases but no date
+range, and quietly returning the unbounded set would look like an answer.
+
+**Phrases needed term positions.** The reference server indexed no positions, so
+the first `"quoted phrase"` query returned zero results while looking healthy.
+`title`, `summary` and `body` now carry `SearchTermPositions()`. Positions
+enlarge the index, which makes the Bluge sizes in `PERFORMANCE.md` a floor.
+
+**One HTTP contract.** `search-server` accepts repeatable `phrase`/`category`/
+`tag`, `since`/`until`, `page`/`per` *or* `offset`/`limit`, and `sort`; returns
+`backend`, `query`, `total`, `page`, `per`, `offset`, `limit`, `results`; sends
+`Server-Timing` and logs every request. Malformed or inverted date bounds are
+400s. `main_test.go` pins the parsing rules, since two independent clients
+depend on them.
+
+**Imported-note switches.** `ledgerHideTitle` keeps the `h1` in the document
+outline and takes it off the screen; `ledgerHideMeta` drops the category/date
+row; `params.post.heroPlaceholder = false` removes the striped stand-in
+site-wide. All three are for archives whose notes carry their own heading,
+timestamp and no hero — a Twitter/X import shows all of it twice otherwise. The
+standfirst also stopped falling back to Hugo's auto `.Summary`, which is the
+first words of the body sitting directly beneath it.
+
+Verified in a browser against both backends: every query form was run through
+the real search UI on a Bluge build and a Pagefind build, and the two agree on
+every query both can express. `exampleSite` carries
+`notes/captured-thread-reply.md` as the imported-note fixture.
+
+Also fixed `footer.html`, where `site.Params.footer.rss | default true` read an
+explicit `rss = false` as absent — Hugo's `default` treats false as empty.
+
+**Follow-ups, found while wiring the generator up to this theme:**
+
+- `home.html` built its primed query with `printf "category:%s"`, so the default
+  "All notes" label — which contains a space — produced a query that tokenised
+  as the category "All" plus the term "notes". It goes through
+  `search-clause.html` like the other six sites now. This is why that partial
+  exists, and it was still missed once.
+- `section.html` called `.Paginate` on the section's whole page set with no cap.
+  Every other unbounded surface is capped by decision D1; this one was not, and
+  a section holding the corpus is the largest single source of pages in a build
+  — 166k notes at 6 per page is ~28k pager directories. New
+  `params.scale.maxSectionPagerPages` (default 500 in the example config),
+  applied by truncating before `.Paginate`, with the same "showing the N most
+  recent" ceiling card home uses.
+
+### 17. The `auto` backend  ✅
+`backend = "auto"` for a build that has to work both as static files and behind
+the Go server — which is what movenotes' `--search-backend both` has always
+promised, and could not express while a backend was chosen at build time.
+
+`auto.js` is not a third engine. It probes `/api/health` once per page load, with
+a 1.5 s timeout, and then delegates to `bluge.js` or `pagefind.js`; a backend has
+to name itself in that response, because a static host serving something at that
+path is not a search server. The answer is cached, so search never pays for the
+probe twice, and concurrent `init()` calls share one probe.
+
+Its one piece of behaviour beyond delegation: if the server stops answering
+mid-session, the first failing query falls back to Pagefind for the rest of the
+session instead of reporting search as broken. That downgrade is deliberately
+one-way — a visitor typing queries is not the right place to retry a server.
+
+Also fixed the `home.ledgersearch.jsonl` guard, which warned that the JSONL was
+unused whenever the backend was not exactly `bluge`; `auto` may select Bluge and
+needs it too.
+
+Verified in a browser on one build served two ways: as static files it probes,
+gets a 404 and uses Pagefind; behind the server it probes, gets `bluge` and
+answers `since:`/`until:` with no unsupported-clause notice and no Pagefind
+download at all. The downgrade was verified by failing `/api/search` while the
+page was open — results kept coming from Pagefind, and the next query issued no
+further request to the dead server.
+
+### 18. Subpath deployments  ✅
+The theme was broken on any site published below the domain root — which is the
+normal case on GitHub Pages, where a repository publishes to
+`<owner>.github.io/<repo>/`.
+
+`relURL` drops the baseURL's path when its argument begins with a slash:
+
+```
+baseURL = "https://example.github.io/archive/"
+"/search/" | relURL  ->  /search/            wrong
+"search/"  | relURL  ->  /archive/search/    right
+```
+
+Every link, stylesheet, script and fetch URL in the theme was written the first
+way — 23 of them. Rather than removing 23 slashes and trusting the next edit,
+they now go through `_partials/site-url.html`, which takes either form and passes
+absolute URLs through. `baseof.html`'s active-nav comparison uses it on both
+sides, so it keeps matching.
+
+Two runtime consequences needed more than a path fix:
+
+- The search config's `bundlePath`, `endpoint` and `healthEndpoint` are fetched or
+  imported by the browser, so they carry the subpath now; an absolute URL still
+  passes through, which is how a Bluge server on another host is configured. The
+  config also gained `siteRoot` for backends that resolve stored result URLs.
+- **Pagefind needed `baseUrl` in `options()`.** It records result URLs relative to
+  the directory it indexed, which is the built site's root and not the domain's,
+  so every result linked to `/notes/…` and 404ed.
+
+Verified by building `exampleSite` with `--baseURL https://example.github.io/archive/`,
+serving it under `/archive/`, and driving search in a browser: four results, every
+href under `/archive/`, and no request outside the subpath except the favicon.
+
+### 19. Benchmark tiers 25k and 200k, and a byte-accurate baseline  ✅
+Two new tiers, and the metric that the Orama/FlexSearch comparison turns on.
+
+**Bytes cannot be measured in the browser.** Pagefind fetches its index from a
+SharedWorker, and a worker's requests never appear in the page's Resource Timing
+entries — so an in-page count reports zero bytes for Pagefind while correctly
+counting a backend that fetches from the page. It would have flattered Pagefind in
+exactly the comparison the harness exists to make. `scripts/serve-counting.js` is
+a dependency-free static server that tallies what it serves;
+`/__bytes?reset=1` starts a measurement. `query-latency.js` also switched from
+`transferSize` to `encodedBodySize`, since the former is 0 for a cache hit.
+
+The result, in `PERFORMANCE.md`: Pagefind has **two independent limits**. Cold
+bytes scale with the number of *tag values* — 13.6 MB at 250 tags, 103 MB and
+2,200 requests at 2,000 — and warm latency scales with the number of *matches*,
+reaching 132 s for a query matching 54,854 of 200,000 notes while transferring
+6 KB. Free text is cheap and scales sublinearly (369 KB at 25k, 1,759 KB at 200k),
+and paging stays flat at 2 ms.
+
+`bench.sh` gained `maxSectionPagerPages` — the older rows were measured before
+that cap and silently emitted a pager directory per six notes, ~83,000 of them at
+500k — plus `home_pagers`, `section_pagers` and `term_dirs` columns so the caps
+are visible in the data rather than inferred from a total.
+
+### 20. The Orama backend — measured, and not promoted  ✅
+`backends/orama.js` behind the same adapter contract, `scripts/build-orama-index.js`
+reading the same JSONL Bluge indexes, and the full metric set at 25,000 notes.
+
+**Refuted on the criterion that scales against it.** Orama holds its whole index in
+memory, so a visitor downloads 223 MB (full text) or 33 MB (titles and summaries)
+and waits 11–19 s before the first result, against Pagefind's 369 KB and about a
+second. Warm queries are then extraordinary — 35 ms for a filter over 8,924 notes
+where Pagefind takes 6,006 ms — but that is the wrong half of the trade for a
+100k-note archive. Two of the promotion rule's four criteria fail, and they are the
+two the rule exists for.
+
+100k and 200k were deliberately not measured: the index is linear, so 200k projects
+to ~1.8 GB, and no measurement of it could change the decision. The projection is
+labelled as arithmetic in `PERFORMANCE.md`.
+
+Three things worth keeping from the attempt:
+
+- **A static `import '@orama/orama'` in the adapter inlines the library into the
+  shared search bundle** — 8.9 KB to 88.2 KB, paid by every site including the
+  Pagefind ones. It is built as its own asset and imported from a runtime URL, the
+  way `pagefind.js` loads its bundle, and only when a site selects the backend.
+- **`@orama/plugin-data-persistence` cannot be bundled for a browser**: its entry
+  point pulls in Node's `stream`. Orama's own `load()` accepts exactly what the
+  plugin's `persist` writes, so the browser needs neither.
+- **A persisted Orama database does not carry its schema**, and `create()` needs
+  one before `load()`. The builder writes it into `meta.json` rather than letting
+  the adapter guess, which would have silently mis-typed fields whenever the index
+  was built with `--fields summary`.
+
+The adapter stays in the theme, registered and documented as a small-site option:
+at a few thousand notes its index is a few megabytes, and it answers the
+`since:`/`until:` bounds Pagefind cannot express at all.
+
+### 21. The FlexSearch backend — measured in both configurations, not promoted  ✅
+`backends/flexsearch.js` with `memory` and `indexeddb` storage,
+`scripts/build-flexsearch-index.js`, and the full metric set at 25,000 notes.
+
+The persistent configuration was the only shape in this comparison that could
+plausibly avoid loading everything, and it half-succeeds: **repeat visits download
+nothing and the JS heap drops to 4–16 MB**, the lowest of any backend measured.
+But the first visit still transfers the whole index — a browser cannot be shipped a
+prepopulated IndexedDB — and time-to-first-result stays at ~15 s on later visits,
+because reading 40 MB back out of IndexedDB is not free. Queries also get *slower*
+than in memory: 1,313 ms against 109 ms for the same query.
+
+| | index at 25k | first result | bytes | heap |
+|---|---|---|---|---|
+| memory, title+body | 342.7 MB | — | 342.7 MB | — |
+| memory, title+summary | 74.4 MB | 13.1 s | 74.5 MB | 133 MB |
+| indexeddb, first visit | 74.4 MB | 24.3 s | 74.5 MB | 4 MB |
+| indexeddb, second visit | — | 14.8 s | **136 KB** | 16 MB |
+| *Pagefind* | 114 MB | ~1 s | **0.37 MB** | 6–31 MB |
+
+It also covers less of the grammar than any other backend: no count API (so whole
+match sets are materialised, which is where the 1,313 ms goes), no numeric range
+filter (dates applied after searching, reported approximate), tag clauses ORed
+rather than ANDed (intersected in the adapter), and no phrase operator.
+
+Two traps recorded in `PERFORMANCE.md`, both of which silently cost everything:
+detecting an already-populated IndexedDB needs a tag search for a value the builder
+records as present — an empty tag filter matches nothing whether populated or not,
+and `db.has()` throws on a mounted-but-unqueried store, so either mistake
+re-downloads the full index on every visit while appearing to work. And the library
+must be loaded from a runtime URL, never imported statically, or it lands in the
+shared search bundle for every site.
+
+Both client-side engines are kept, registered and documented as small-site options.
+The shared search bundle is 13.4 KB with both adapters present, against 8.9 KB with
+neither.
+
+### 22. Result ordering and a search page that rests  ✅
+Two behaviours the archive shape asks for, both narrower than they sound.
+
+**Every query returns newest first.** The date sort was previously requested only
+for null-term queries, on the theory that relevance was worth keeping wherever
+there was a term to rank by. That reasoning does not survive the use case: an
+archive is read chronologically, and in relevance order the most recent note lands
+at an unpredictable position — in a long result set, at the end. It also made the
+Hugo/backend ordering invariant conditional, so `term.html`'s server-rendered page
+1 and a backend-served page 2 were slices of one sequence for some query shapes and
+of two for others. Now unconditional in all four adapters and both Go servers;
+`sort=score` is the escape hatch and nothing in the theme sends it.
+
+The cost was the open question — the null-term sort measures 2× at 200k. On a text
+query it did not appear at all: 369 KB and 1,192 ms at 25k, the same bytes as
+before the change. Page 2 was verified to continue page 1's sequence with no
+overlap.
+
+**`/search/` issues no query until one is submitted.** An arrival with no query in
+the URL was a matchAll, which is the most expensive request Pagefind can serve, so
+merely opening the search page paid for the whole corpus.
+
+| opening `/search/`, 25k, cold | requests | bytes | to `/pagefind/` |
+|---|---|---|---|
+| before | 442 | 13,503 KB | 13,503 KB |
+| after | 12 | 86 KB | **0 KB** |
+
+Nothing is lost: an empty box, once submitted, still means every note. The parser
+already discarded `category:"All notes"` — Joplin's phrasing for "no filter" — so
+that query and an empty one are the same request, verified identical on the
+exampleSite (17 notes, same order).

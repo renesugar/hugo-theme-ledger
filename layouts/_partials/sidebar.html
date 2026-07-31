@@ -37,7 +37,7 @@
   {{- range site.Params.mainSections | default (slice "notes") -}}
     {{- with site.GetPage (printf "/%s" .) -}}{{- $notes = add $notes (len .RegularPages) -}}{{- end -}}
   {{- end -}}
-  {{- $allURL := printf "%s?q=%s" ("/search/" | relURL) (printf "category:%s" $allLabel | urlquery) -}}
+  {{- $allURL := printf "%s?q=%s" (partial "site-url.html" "/search/") (partial "search-clause.html" (dict "field" "category" "value" $allLabel) | urlquery) -}}
   {{- $catItems = (slice (dict "name" $allLabel "url" $allURL "path" "" "count" $notes "over" (gt $notes $limit))) | append $catItems -}}
   {{- $catTotal = add $catTotal 1 -}}
 {{- end -}}
@@ -53,18 +53,18 @@
   {{/* Below 900px the header nav is hidden, so the drawer carries it. */}}
   <nav class="ledger-drawer-nav" aria-label="Main (drawer)">
     <a href="{{ site.Home.RelPermalink }}" data-ledger-drawer-close>Home</a>
-    <a href="{{ "/tags/" | relURL }}" data-ledger-drawer-close>Tags</a>
-    <a href="{{ "/about/" | relURL }}" data-ledger-drawer-close>About</a>
-    <a href="{{ "/search/" | relURL }}" data-ledger-drawer-close>Search</a>
+    <a href="{{ partial "site-url.html" "/tags/" }}" data-ledger-drawer-close>Tags</a>
+    <a href="{{ partial "site-url.html" "/about/" }}" data-ledger-drawer-close>About</a>
+    <a href="{{ partial "site-url.html" "/search/" }}" data-ledger-drawer-close>Search</a>
   </nav>
 
   {{- range slice
         (dict "id" "categories" "label" "Categories" "glyph" "&#x25B8;" "items" $catItems
               "total" $catTotal "per" $catsPer "perMobile" $catsPerMobile
-              "truncated" $cats.truncated "allURL" ("/categories/" | relURL))
+              "truncated" $cats.truncated "allURL" (partial "site-url.html" "/categories/"))
         (dict "id" "tags" "label" "Tags" "glyph" "#" "items" $tags.terms
               "total" $tags.total "per" $tagsPer "perMobile" $tagsPerMobile
-              "truncated" $tags.truncated "allURL" ("/tags/" | relURL)) }}
+              "truncated" $tags.truncated "allURL" (partial "site-url.html" "/tags/")) }}
   <section class="ledger-panel" data-panel="{{ .id }}">
 
     <h2 class="ledger-panel-heading">

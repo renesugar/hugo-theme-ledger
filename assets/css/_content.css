@@ -102,6 +102,18 @@
   color: var(--faint);
 }
 
+/* Part of the query the active backend could not honour. --dim, not --faint:
+   this is a correctness warning about the results on screen, not a caption. */
+.ledger-search-notice {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--accent);
+  background: var(--sel);
+  border-radius: 0 var(--r-input) var(--r-input) 0;
+  font: 400 12px/1.5 var(--font-mono);
+  color: var(--dim);
+}
+
 /* ── Result cards ────────────────────────────────────────────────────────── */
 
 .ledger-results {

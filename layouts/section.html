@@ -3,7 +3,25 @@
      natural generic list, so they render with the same shared parts as the
      archive: heading block, result cards, server-rendered pagination. */}}
 {{- $per := int (site.Params.pagination.term | default 6) -}}
-{{- $paginator := .Paginate .Pages $per -}}
+
+{{- /* Decision D1 applies here too, and for the same reason it applies to home:
+       a section holding the whole corpus is unbounded. A 166k-note `notes/`
+       section at 6 per page is ~28k pager directories — the largest single
+       source of generated pages in a build, and invisible until you count the
+       output. Truncate the input before .Paginate; capping the links alone does
+       nothing, since Hugo generates a page for every pager it is handed. */ -}}
+{{- $pages := .Pages -}}
+{{- $ceiling := int (site.Params.scale.maxSectionPagerPages | default 0) -}}
+{{- $truncatedFrom := 0 -}}
+{{- if gt $ceiling 0 -}}
+  {{- $maxItems := mul $ceiling $per -}}
+  {{- if gt (len $pages) $maxItems -}}
+    {{- $truncatedFrom = len $pages -}}
+    {{- $pages = first $maxItems $pages -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $paginator := .Paginate $pages $per -}}
 
 <div class="ledger-heading">
   <span class="ledger-eyebrow">Section</span>
@@ -23,7 +41,7 @@
   {{ partial "result-card.html" . }}
   {{- end }}
 </div>
-{{ partial "pagination.html" (dict "paginator" $paginator) }}
+{{ partial "pagination.html" (dict "paginator" $paginator "truncatedFrom" $truncatedFrom) }}
 {{ else }}
 {{ partial "empty-results.html" (dict "query" "") }}
 {{ end }}

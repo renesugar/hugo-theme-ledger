@@ -5,18 +5,37 @@
    fixed. Anything that speaks the contract below can be dropped in beside
    these two files.
 
-   Expected endpoint response:
+   Expected endpoint request and response:
 
-     GET {endpoint}?q=<text>&category=<name>&tag=<name>&page=<n>&per=<n>
+     GET {endpoint}?expr=<JSON expression tree>
+                   &page=<n>&per=<n>
+
+   or, for a query with no operators in it:
+
+     GET {endpoint}?q=<free text>
+                   &phrase=<exact phrase>   (repeatable)
+                   &category=<name>         (repeatable)
+                   &tag=<name>              (repeatable)
+                   &since=YYYY-MM-DD&until=YYYY-MM-DD
+                   &page=<n>&per=<n>
 
      {
        "total":   1234,
+       "page":    1,
+       "per":     6,
        "results": [
          { "title": "...", "summary": "...", "url": "/notes/x/",
            "category": "Recipes", "tags": ["sourdough"],
            "date": "2026-06-14", "readingTime": 7 }
        ]
      }
+
+   Repeated parameters are ANDed. The server never re-parses `category:` or
+   `tag:` prefixes or quotes: the grammar is parsed once, client-side, in
+   query.js, and arrives here already split into fields.
+
+   `offset`/`limit` are accepted by the reference server as an alternative to
+   `page`/`per`, for callers that are not this adapter.
 
    Paging is server-side here — the endpoint receives page/per and returns only
    that slice, so a large corpus never crosses the wire. See PLAN.md step 12 for
@@ -33,9 +52,22 @@ export async function search(parsed, opts) {
   var perPage = Math.max(1, opts.perPage || 6);
 
   var params = new URLSearchParams();
-  if (parsed.text) params.set('q', parsed.text);
-  if (parsed.field === 'category') params.set('category', parsed.value);
-  else if (parsed.field === 'tag') params.set('tag', parsed.value);
+  if (parsed.operators && parsed.operators.length && parsed.tree) {
+    /* `OR`, negation and grouping have no flat spelling — the parameters below
+       are a set of clauses the server ANDs — so a query using them travels as
+       the tree itself. Only then: the flat form keeps a query legible in a
+       shared URL, and most queries have no operators in them. */
+    params.set('expr', JSON.stringify(parsed.tree));
+  } else {
+    // Free terms travel as one `q`; phrases travel separately so the server does
+    // not have to know the quoting rules.
+    if (parsed.terms.length) params.set('q', parsed.terms.join(' '));
+    parsed.phrases.forEach(function (p) { params.append('phrase', p); });
+    parsed.categories.forEach(function (c) { params.append('category', c); });
+    parsed.tags.forEach(function (t) { params.append('tag', t); });
+    if (parsed.since) params.set('since', parsed.since);
+    if (parsed.until) params.set('until', parsed.until);
+  }
   params.set('page', String(page));
   params.set('per', String(perPage));
 
@@ -63,6 +95,7 @@ export async function search(parsed, opts) {
         date: r.date || '',
         readingTime: r.readingTime || ''
       };
-    })
+    }),
+    unsupported: []
   };
 }

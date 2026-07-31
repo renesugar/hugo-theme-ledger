@@ -8,8 +8,14 @@ import { parseQuery } from './query.js';
 import { windowPages } from './paging.js';
 import * as pagefind from './backends/pagefind.js';
 import * as bluge from './backends/bluge.js';
+import * as auto from './backends/auto.js';
+import * as orama from './backends/orama.js';
+import * as flexsearch from './backends/flexsearch.js';
 
-var BACKENDS = { pagefind: pagefind, bluge: bluge };
+var BACKENDS = {
+  pagefind: pagefind, bluge: bluge, auto: auto,
+  orama: orama, flexsearch: flexsearch,
+};
 
 var root = document.querySelector('[data-ledger-search]');
 if (root) init(root);
@@ -28,6 +34,7 @@ function init(root) {
   var pageEl = root.querySelector('[data-ledger-result-page]');
   var emptyEl = root.querySelector('[data-ledger-search-empty]');
   var emptyTitle = emptyEl.querySelector('.ledger-empty-title');
+  var noticeEl = root.querySelector('[data-ledger-search-notice]');
 
   // On an over-limit term archive the query belongs to the page, not the URL,
   // so it is never written back into the query string.
@@ -85,6 +92,7 @@ function init(root) {
   }
 
   function render(query, response) {
+    notice(response.unsupported);
     metaEl.hidden = false;
     countEl.textContent = response.total.toLocaleString() +
       (response.total === 1 ? ' result' : ' results') +
@@ -112,7 +120,36 @@ function init(root) {
     if (response.pages > 1) pagerEl.appendChild(pager(query, response));
   }
 
+  /* Clauses the active backend could not honour. Saying so is the whole point:
+     a Pagefind site that quietly dropped `since:` would return the unbounded
+     set and look like it had answered the question. */
+  function notice(unsupported) {
+    if (!noticeEl) return;
+    var dropped = unsupported || [];
+    if (!dropped.length) {
+      noticeEl.textContent = '';
+      noticeEl.hidden = true;
+      return;
+    }
+    noticeEl.textContent = 'Ignored by this site’s search backend: ' +
+      dropped.join(', ') + '.';
+    noticeEl.hidden = false;
+  }
+
+  /* The resting state of the search page: a prompt, no request. */
+  function awaitFirstQuery() {
+    notice([]);
+    metaEl.hidden = true;
+    resultsEl.textContent = '';
+    pagerEl.textContent = '';
+    emptyTitle.textContent = emptyEl.getAttribute('data-idle-title') ||
+      'Search the archive';
+    emptyEl.hidden = false;
+    if (input) input.focus({ preventScroll: true });
+  }
+
   function renderError(error) {
+    notice([]);
     metaEl.hidden = false;
     countEl.textContent = 'Search is unavailable';
     pageEl.textContent = '';
@@ -231,8 +268,20 @@ function init(root) {
     run(currentQuery(), currentPage(), { skipURL: true });
   });
 
+  /* Arriving at /search/ with nothing in the URL runs no query at all.
+
+     An empty query means `category:"All notes"` — the grammar defines that label
+     as everything — and that is the most expensive request the site can make: a
+     null-term search costs 13.5 MB over 442 requests at 25k notes, and 103 MB at
+     200k. Paying it to render a list the visitor did not ask for, and which the
+     home page already shows server-rendered, is the worst trade in the theme.
+
+     Submitting an empty box still runs it: then it is a query the visitor asked
+     for, and it returns every note, newest first. */
   if (prerendered && currentPage() === 1) {
     adoptPrerendered(currentQuery());
+  } else if (!pinned && !currentQuery()) {
+    awaitFirstQuery();
   } else {
     run(currentQuery(), currentPage(), { replace: true });
   }

@@ -16,14 +16,20 @@
   {{- end -}}
 {{- end -}}
 
-<div class="ledger-empty" data-card data-ledger-empty>
+{{- /* `idleTitle` is what the search page shows before the visitor has searched.
+       It is an attribute rather than a second partial because the controller
+       swaps only the title: everything else — the help line and the suggestions —
+       is as useful for "nothing yet" as it is for "nothing matched". */ -}}
+<div class="ledger-empty" data-card data-ledger-empty
+     data-idle-title="{{ .idleTitle | default "Search the archive" }}">
   <div class="ledger-empty-icon" aria-hidden="true">&#x2315;</div>
   <p class="ledger-empty-title">
     No notes match {{ with $query }}&ldquo;{{ . }}&rdquo;{{ else }}that query{{ end }}
   </p>
   <p class="ledger-empty-help">
-    Try a broader term, or filter by a field:
+    Type a term, or filter by a field:
     <code>category:Recipes</code>, <code>tag:sourdough</code>.
+    An empty search returns every note, newest first.
   </p>
   {{- with $suggestions }}
   <div class="ledger-empty-suggestions">

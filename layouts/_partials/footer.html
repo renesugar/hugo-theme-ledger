@@ -26,7 +26,9 @@
   <span class="ledger-footer-blurb">{{ $blurb }}</span>
   <span class="ledger-spacer"></span>
   <span class="ledger-footer-credit">Ledger theme for Hugo</span>
-  {{- if site.Params.footer.rss | default true }}
+  {{- /* `ne … false` rather than `| default true`, which reads an explicit
+         `rss = false` as absent and links to the feed anyway. */ -}}
+  {{- if ne ((site.Params.footer | default dict).rss) false }}
     {{- with site.Home.OutputFormats.Get "rss" }}
   <a class="ledger-footer-link" href="{{ .RelPermalink }}">RSS</a>
     {{- end }}

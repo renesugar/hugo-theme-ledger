@@ -57,6 +57,6 @@
 <p class="ledger-page-ceiling">
   Showing the {{ lang.FormatNumber 0 $paginator.TotalNumberOfElements }} most recent of
   {{ lang.FormatNumber 0 $truncatedFrom }} notes.
-  <a href="{{ "/search/" | relURL }}">Search</a> to reach the rest.
+  <a href="{{ partial "site-url.html" "/search/" }}">Search</a> to reach the rest.
 </p>
 {{- end }}

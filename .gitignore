@@ -38,3 +38,10 @@ yarn-error.log*
 
 # Scale-test corpora and reports
 /bench/site/
+/bench/site25/
+/bench/site200/
+
+# Compiled reference search server and its index
+/search-server/search-server
+/search-server/bluge-index/
+/search-server/bluge-index.*

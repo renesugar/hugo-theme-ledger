@@ -61,16 +61,25 @@ capitalizeListTitles = false
     # panel links to the full taxonomy page instead of growing without bound.
     maxTerms = 200
 
+  [params.post]
+    # Show the striped stand-in when a note has no `image`. Turn this off for a
+    # generated archive of short notes, where a placeholder on every page is
+    # noise rather than design.
+    heroPlaceholder = true
+
   [params.search]
     backend = "pagefind"          # pagefind | bluge
     bundlePath = "/pagefind/pagefind.js"
     endpoint = "/api/search"      # bluge only
 
   [params.scale]
-    # Ceiling on generated home pager pages (decision D1 in PLAN.md). Past this
-    # the home view stops paginating and points at search instead. Keeps build
-    # time bounded on corpora of 100k+ pages.
+    # Ceilings on generated pager pages (decision D1 in PLAN.md). Past these the
+    # view stops paginating and points at search instead. Keeps build time
+    # bounded on corpora of 100k+ pages. 0 disables a cap.
     maxHomePagerPages = 500
+    # A section can hold the whole corpus, so this one matters just as much:
+    # uncapped, a 166k-note section at 6/page emits ~28k pager directories.
+    maxSectionPagerPages = 500
 
   [params.footer]
     rss = true

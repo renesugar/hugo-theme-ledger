@@ -224,3 +224,58 @@ func TestFlatParametersStillWorkWithoutATree(t *testing.T) {
 		t.Errorf("describe = %q", describe(got))
 	}
 }
+
+// Emoji are keywords rather than text, because the standard analyser produces
+// no term at all for one. Kept in step with movenotes' generated server, which
+// applies the same rule.
+func TestEmojiDetection(t *testing.T) {
+	for _, c := range []struct {
+		text string
+		want []string
+	}{
+		{"😃", []string{"😃"}},
+		{"happy 😃 day", []string{"😃"}},
+		{"🔁 0 💙 0", []string{"🔁", "💙"}},
+		{"😃 and 😃 again", []string{"😃"}},
+		{"no emoji here", nil},
+		{"café ifnβ", nil},
+		{"© ® 1999", nil},
+	} {
+		if got := emojiSymbols(c.text); !reflect.DeepEqual(got, c.want) {
+			t.Errorf("emojiSymbols(%q) = %q, want %q", c.text, got, c.want)
+		}
+	}
+	for _, c := range []struct {
+		term string
+		want bool
+	}{
+		{"😃", true}, {"😃😡", true}, {"👍🏽", true},
+		{"happy", false}, {"😃happy", false}, {"", false}, {"café", false},
+	} {
+		if got := isEmojiTerm(c.term); got != c.want {
+			t.Errorf("isEmojiTerm(%q) = %v, want %v", c.term, got, c.want)
+		}
+	}
+}
+
+// A free-text query is split so the emoji reach the keyword field and the words
+// reach the text fields. A query with no emoji must come through untouched.
+func TestSplitEmoji(t *testing.T) {
+	for _, c := range []struct {
+		terms   string
+		words   string
+		symbols []string
+	}{
+		{"canadian housing", "canadian housing", nil},
+		{"😃", "", []string{"😃"}},
+		{"happy 😃", "happy", []string{"😃"}},
+		{"😃 😡 mixed", "mixed", []string{"😃", "😡"}},
+		{"", "", nil},
+	} {
+		words, symbols := splitEmoji(c.terms)
+		if words != c.words || !reflect.DeepEqual(symbols, c.symbols) {
+			t.Errorf("splitEmoji(%q) = %q, %q; want %q, %q",
+				c.terms, words, symbols, c.words, c.symbols)
+		}
+	}
+}

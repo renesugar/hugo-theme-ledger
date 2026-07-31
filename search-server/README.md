@@ -178,6 +178,11 @@ only needs `endpoint` to resolve — same origin, or CORS on your side.
   make the index larger; that is what the phrase clause costs.
 - Date bounds are a lexical range over the sortable ISO date, so no separate
   datetime field is needed: zero-padded dates sort chronologically as text.
+- Emoji are indexed as keywords in their own field, because the analyser makes
+  no term for one at all: `😃` yields nothing and `happy 😃 day` yields
+  `[happy] [day]`. A term made only of emoji is matched against that field
+  instead of the text fields. Rune by rune, so 👍🏽 and 👍 are the same search
+  and any part of a joined sequence finds it. Costs 0.6% of the index.
 - Results sort newest-first for **every** query, not only for those with no text
   to rank. An archive is read chronologically, and page 1 may be server-rendered
   by Hugo in date order while this endpoint serves page 2 — the two have to be

@@ -221,6 +221,7 @@ backend is configured:
 | `sourdough OR rye` | either — `OR` is uppercase only, so the word stays searchable |
 | `bread -sourdough` | negation; needs something positive alongside it |
 | `(rye OR spelt) tag:baking` | grouping |
+| `😃` | an emoji, on its own or beside words |
 | anything else | free text over title, summary and body |
 
 Clauses are ANDed, and anything that does not fit the grammar — `foo:bar`,

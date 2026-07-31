@@ -29,6 +29,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/blugelabs/bluge"
 	"github.com/blugelabs/bluge/search"
@@ -317,6 +318,13 @@ func buildIndex(sourcePath, indexDir string) error {
 				doc.AddField(bluge.NewKeywordField("tag", tag).StoreValue())
 			}
 		}
+
+		// Emoji as keywords, because the analyser drops them from the text
+		// fields entirely: `😃` produces no term at all. Title as well as body,
+		// since an imported note's own text is its title.
+		for _, symbol := range emojiSymbols(record.Title + " " + record.Body) {
+			doc.AddField(bluge.NewKeywordField("emoji", symbol))
+		}
 		// Sorting newest-first needs a comparable value; the date string is
 		// already zero-padded ISO, so lexical order is chronological order.
 		doc.AddField(bluge.NewKeywordField("sortdate", record.Date).Sortable())
@@ -549,6 +557,9 @@ func buildExpr(node *exprNode) bluge.Query {
 		return nil
 
 	case "term":
+		if isEmojiTerm(node.Value) {
+			return emojiQuery(node.Value)
+		}
 		any := bluge.NewBooleanQuery().SetMinShould(1)
 		any.AddShould(bluge.NewMatchQuery(node.Value).SetField("title").SetBoost(5))
 		any.AddShould(bluge.NewMatchQuery(node.Value).SetField("summary").SetBoost(2))
@@ -593,13 +604,22 @@ func buildFlatQuery(params searchParams) bluge.Query {
 		clauses++
 	}
 
+	// Emoji are keywords, not text: the analyser drops them from the text
+	// fields, so they are separated out before the rest is handed over as one
+	// string. A query with no emoji in it is unaffected.
+	words, symbols := splitEmoji(params.terms)
+	for _, symbol := range symbols {
+		conjunction.AddMust(emojiQuery(symbol))
+		clauses++
+	}
+
 	// Title matches outrank summary, which outranks body — for terms and for
 	// phrases alike.
-	if params.terms != "" {
+	if words != "" {
 		any := bluge.NewBooleanQuery().SetMinShould(1)
-		any.AddShould(bluge.NewMatchQuery(params.terms).SetField("title").SetBoost(5))
-		any.AddShould(bluge.NewMatchQuery(params.terms).SetField("summary").SetBoost(2))
-		any.AddShould(bluge.NewMatchQuery(params.terms).SetField("body"))
+		any.AddShould(bluge.NewMatchQuery(words).SetField("title").SetBoost(5))
+		any.AddShould(bluge.NewMatchQuery(words).SetField("summary").SetBoost(2))
+		any.AddShould(bluge.NewMatchQuery(words).SetField("body"))
 		conjunction.AddMust(any)
 		clauses++
 	}
@@ -762,4 +782,78 @@ func writeJSON(w http.ResponseWriter, value any) {
 	if err := json.NewEncoder(w).Encode(value); err != nil {
 		log.Printf("write response: %v", err)
 	}
+}
+
+// emojiSymbols returns the distinct emoji in a string, in order of first
+// appearance. The standard analyser produces no term at all for one — `😃`
+// yields nothing, `happy 😃 day` yields [happy day] — so they are indexed as
+// keywords, the same shape `tag` uses.
+//
+// Rune by rune, so a joined sequence such as 👨‍👩‍👧 is found by any of its
+// parts. Joiners, variation selectors and skin-tone modifiers are not symbols
+// in their own right and are skipped, which makes 👍🏽 and 👍 the same search.
+func emojiSymbols(text string) []string {
+	var out []string
+	seen := make(map[rune]bool)
+	for _, r := range text {
+		// Symbol-other, above the punctuation blocks: emoji live there, while
+		// © and ® sit below it and are ordinary characters in prose.
+		if r < 0x2000 || !unicode.Is(unicode.So, r) || seen[r] {
+			continue
+		}
+		seen[r] = true
+		out = append(out, string(r))
+	}
+	return out
+}
+
+// isEmojiTerm reports whether a query term is made only of emoji, which is when
+// it belongs to the keyword field rather than the text fields.
+func isEmojiTerm(term string) bool {
+	found := false
+	for _, r := range term {
+		if r < 0x2000 || !unicode.Is(unicode.So, r) {
+			if r == 0x200D || r == 0xFE0F || unicode.Is(unicode.Sk, r) {
+				continue
+			}
+			return false
+		}
+		found = true
+	}
+	return found
+}
+
+// emojiQuery matches an emoji term against the keyword field, requiring every
+// symbol in it: `😃😡` means a note carrying both.
+func emojiQuery(term string) bluge.Query {
+	symbols := emojiSymbols(term)
+	if len(symbols) == 0 {
+		return nil
+	}
+	if len(symbols) == 1 {
+		return bluge.NewTermQuery(symbols[0]).SetField("emoji")
+	}
+	conjunction := bluge.NewBooleanQuery()
+	for _, symbol := range symbols {
+		conjunction.AddMust(bluge.NewTermQuery(symbol).SetField("emoji"))
+	}
+	return conjunction
+}
+
+// splitEmoji divides free text into the words the analyser can index and the
+// emoji-only terms it cannot.
+func splitEmoji(terms string) (words string, symbols []string) {
+	if terms == "" {
+		return "", nil
+	}
+	fields := strings.Fields(terms)
+	kept := fields[:0]
+	for _, field := range fields {
+		if isEmojiTerm(field) {
+			symbols = append(symbols, field)
+			continue
+		}
+		kept = append(kept, field)
+	}
+	return strings.Join(kept, " "), symbols
 }

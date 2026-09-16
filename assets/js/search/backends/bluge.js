@@ -42,9 +42,20 @@
    the reference Go server built on blugelabs/bluge. */
 
 var endpoint = '/api/search';
+var siteRoot = '/';
 
 export async function init(config) {
   if (config.endpoint) endpoint = config.endpoint;
+  siteRoot = (config.siteRoot || '/').replace(/\/?$/, '/');
+}
+
+// Movenotes stores site-root-relative URLs, while Hugo's own JSONL contains
+// .RelPermalink (already prefixed). Support both without changing canonical
+// paths or doubling the prefix. Absolute destinations are already resolved.
+function resultURL(url) {
+  if (!url || /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(url)) return url;
+  if (url.startsWith(siteRoot)) return url;
+  return siteRoot + url.replace(/^\/+/, '');
 }
 
 export async function search(parsed, opts) {
@@ -89,7 +100,7 @@ export async function search(parsed, opts) {
       return {
         title: r.title || r.url,
         summary: r.summary || '',
-        url: r.url,
+        url: resultURL(r.url),
         category: r.category || '',
         tags: r.tags || [],
         date: r.date || '',

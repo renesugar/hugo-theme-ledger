@@ -73,3 +73,27 @@ test('an empty query asks for everything, with no expr', async () => {
   assert.equal(params.get('q'), null);
   assert.equal(params.get('per'), '6');
 });
+
+
+test('results resolve against the site subpath without double prefixes', async () => {
+  const saved = globalThis.fetch;
+  const urls = ['/notes/a.html', 'notes/b.html', '/archive/notes/c.html',
+    '/archive-other/note.html', '/notes/研究.html#details',
+    'https://example.org/note', '//example.org/note'];
+  globalThis.fetch = async () => ({ok: true, json: async () => ({
+    total: urls.length, results: urls.map(url => ({url}))
+  })});
+  try {
+    await init({siteRoot: '/archive/'});
+    const result = await search(parseQuery(''), {page: 1, perPage: 20});
+    assert.deepEqual(result.results.map(r => r.url), [
+      '/archive/notes/a.html', '/archive/notes/b.html', '/archive/notes/c.html',
+      '/archive/archive-other/note.html', '/archive/notes/研究.html#details',
+      'https://example.org/note', '//example.org/note'
+    ]);
+    await init({});
+    const root = await search(parseQuery(''), {page: 1, perPage: 20});
+    assert.equal(root.results[0].url, '/notes/a.html');
+    assert.equal(root.results[1].url, '/notes/b.html');
+  } finally {globalThis.fetch = saved;}
+});
